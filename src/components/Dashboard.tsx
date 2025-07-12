@@ -16,7 +16,6 @@ import { TransactionList } from "./TransactionList";
 import { SearchBar } from "./SearchBar";
 import { useUserContext } from "../contexts/UserContext";
 import { DollarSign, TrendingUp, TrendingDown, Clock } from "lucide-react";
-import { formatTransactionDate, getDateRange } from "../utils/dateHelpers";
 import { 
   analyzeTransactionPatterns, 
   calculateRiskFactors, 
@@ -87,7 +86,7 @@ export const Dashboard: React.FC = () => {
     const loadInitialData = async () => {
       setLoading(true);
 
-      const initialData = await generateTransactionData(10000);
+      const initialData = await generateTransactionData(0);
       setTransactions(initialData);
       setFilteredTransactions(initialData);
 

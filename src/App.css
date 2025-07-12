@@ -469,6 +469,14 @@ body {
   background: #1976d2;
 }
 
+.empty-transaction-message {
+  text-align: center;
+  margin-top: 20px;
+  color: #666;
+  padding: 20px;
+  background-color: #f5f5f5;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .dashboard {

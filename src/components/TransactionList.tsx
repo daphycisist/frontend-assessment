@@ -115,7 +115,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
             />
           </div>
         ) : (
-          <p>No transactions found</p>
+          <p className="empty-transaction-message">No transactions found</p>
         )
       }
 
