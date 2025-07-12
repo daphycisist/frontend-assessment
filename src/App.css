@@ -52,6 +52,9 @@ body {
   display: flex;
   align-items: center;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  min-width: 0;
 }
 
 .stat-card:hover {
@@ -62,7 +65,7 @@ body {
 .stat-icon {
   background: #e3f2fd;
   border-radius: 50%;
-  width: 48px;
+  min-width: 48px;
   height: 48px;
   display: flex;
   align-items: center;
@@ -73,6 +76,9 @@ body {
 
 .stat-content {
   flex: 1;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  min-width: 0;
 }
 
 .stat-value {

@@ -22,6 +22,7 @@ import {
   detectAnomalies, 
   generateRiskAssessment 
 } from "../utils/analyticsEngine";
+import { formatNumber } from "../utils/dateHelpers";
 
 export const Dashboard: React.FC = () => {
   const { globalSettings, trackActivity } = useUserContext();
@@ -86,7 +87,7 @@ export const Dashboard: React.FC = () => {
     const loadInitialData = async () => {
       setLoading(true);
 
-      const initialData = await generateTransactionData(0);
+      const initialData = await generateTransactionData(10000);
       setTransactions(initialData);
       setFilteredTransactions(initialData);
 
@@ -137,35 +138,6 @@ export const Dashboard: React.FC = () => {
   })();
 
   }, [filteredTransactions]);
-
-  // useEffect(() => {
-  //   const handleResize = () => {
-  //     const newSummary = calculateSummary(filteredTransactions);
-  //     setSummary(newSummary);
-  //   };
-
-  //   const handleScroll = () => {
-  //     console.log("Scrolling...", new Date().toISOString());
-  //   };
-
-  //   const handleKeyDown = (e: KeyboardEvent) => {
-  //     if (e.ctrlKey && e.key === "f") {
-  //       e.preventDefault();
-  //       const searchResults = searchTransactions(transactions, "search");
-  //       setFilteredTransactions(searchResults);
-  //     }
-  //   };
-
-  //   window.addEventListener("resize", handleResize);
-  //   window.addEventListener("scroll", handleScroll);
-  //   window.addEventListener("keydown", handleKeyDown);
-
-  //   // return () => {
-  //   //   window.removeEventListener('resize', handleResize);
-  //   //   window.removeEventListener('scroll', handleScroll);
-  //   //   window.removeEventListener('keydown', handleKeyDown);
-  //   // };
-  // }, [transactions, filteredTransactions]);
 
   const applyFilters = useCallback(async (
     data: Transaction[],
@@ -330,7 +302,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <div className="stat-content">
               <div className="stat-value">
-                ${summary ? summary.totalAmount.toLocaleString() : "0"}
+                ${summary ? formatNumber(summary.totalAmount) : "0"}
               </div>
               <div className="stat-label">Total Amount</div>
             </div>
@@ -342,7 +314,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <div className="stat-content">
               <div className="stat-value">
-                ${summary ? summary.totalCredits.toLocaleString() : "0"}
+                ${summary ? formatNumber(summary.totalCredits) : "0"}
               </div>
               <div className="stat-label">Total Credits</div>
             </div>
@@ -354,7 +326,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <div className="stat-content">
               <div className="stat-value">
-                ${summary ? summary.totalDebits.toLocaleString() : "0"}
+                ${summary ? formatNumber(summary.totalDebits) : "0"}
               </div>
               <div className="stat-label">Total Debits</div>
             </div>
@@ -366,11 +338,11 @@ export const Dashboard: React.FC = () => {
             </div>
             <div className="stat-content">
               <div className="stat-value">
-                {filteredTransactions.length.toLocaleString()}
+                {formatNumber(filteredTransactions.length)}
                 {filteredTransactions.length !== transactions.length && (
                   <span className="stat-total">
                     {" "}
-                    of {transactions.length.toLocaleString()}
+                    of {formatNumber(transactions.length)}
                   </span>
                 )}
               </div>
