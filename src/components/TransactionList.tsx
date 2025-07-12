@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { Transaction } from "../types/transaction";
-import { format } from "date-fns";
+import React, { useState, useEffect } from 'react';
+import { FixedSizeList as List, ListChildComponentProps } from 'react-window';
+import { Transaction } from '../types/transaction';
+import { format } from 'date-fns';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -21,9 +22,9 @@ export const TransactionList: React.FC<TransactionListProps> = ({
     const formattedTransactions = transactions.map((t) => {
       return {
         ...t,
-        formattedAmount: new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "USD",
+        formattedAmount: new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'USD',
         }).format(t.amount),
       };
     });
@@ -31,10 +32,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
     setSelectedItems(new Set());
 
     if (formattedTransactions.length > 0) {
-      localStorage.setItem(
-        "lastTransactionCount",
-        formattedTransactions.length.toString()
-      );
+      localStorage.setItem('lastTransactionCount', formattedTransactions.length.toString());
     }
   });
 
@@ -57,16 +55,31 @@ export const TransactionList: React.FC<TransactionListProps> = ({
     setHoveredItem(null);
   };
 
-  const sortedTransactions = transactions.sort((a, b) => {
+  const sortedTransactions = [...transactions].sort((a, b) => {
     return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
   });
 
+  // Row renderer for react-window
+  const Row = ({ index, style }: ListChildComponentProps) => {
+    const transaction = sortedTransactions[index];
+    return (
+      <div style={style}>
+        <TransactionItem
+          key={transaction.id}
+          transaction={transaction}
+          isSelected={selectedItems.has(transaction.id)}
+          isHovered={hoveredItem === transaction.id}
+          onClick={() => handleItemClick(transaction)}
+          onMouseEnter={() => handleMouseEnter(transaction.id)}
+          onMouseLeave={handleMouseLeave}
+          rowIndex={index}
+        />
+      </div>
+    );
+  };
+
   return (
-    <div
-      className="transaction-list"
-      role="region"
-      aria-label="Transaction list"
-    >
+    <div className="transaction-list" role="region" aria-label="Transaction list">
       <div className="transaction-list-header">
         <h2 id="transaction-list-title">
           Transactions ({transactions.length}
@@ -76,10 +89,10 @@ export const TransactionList: React.FC<TransactionListProps> = ({
           )
         </h2>
         <span className="total-amount" aria-live="polite">
-          Total:{" "}
-          {new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
+          Total:{' '}
+          {new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
           }).format(transactions.reduce((sum, t) => sum + t.amount, 0))}
         </span>
       </div>
@@ -91,18 +104,9 @@ export const TransactionList: React.FC<TransactionListProps> = ({
         aria-rowcount={sortedTransactions.length}
         tabIndex={0}
       >
-        {sortedTransactions.map((transaction, index) => (
-          <TransactionItem
-            key={transaction.id}
-            transaction={transaction}
-            isSelected={selectedItems.has(transaction.id)}
-            isHovered={hoveredItem === transaction.id}
-            onClick={() => handleItemClick(transaction)}
-            onMouseEnter={() => handleMouseEnter(transaction.id)}
-            onMouseLeave={handleMouseLeave}
-            rowIndex={index}
-          />
-        ))}
+        <List height={600} itemCount={sortedTransactions.length} itemSize={80} width="100%">
+          {Row}
+        </List>
       </div>
     </div>
   );
@@ -116,45 +120,35 @@ const TransactionItem: React.FC<{
   onMouseEnter: () => void;
   onMouseLeave: () => void;
   rowIndex: number;
-}> = ({
-  transaction,
-  isSelected,
-  isHovered,
-  onClick,
-  onMouseEnter,
-  onMouseLeave,
-  rowIndex,
-}) => {
+}> = ({ transaction, isSelected, isHovered, onClick, onMouseEnter, onMouseLeave, rowIndex }) => {
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
     }).format(amount);
   };
 
   const formatDate = (date: Date) => {
-    return format(date, "MMM dd, yyyy HH:mm");
+    return format(date, 'MMM dd, yyyy HH:mm');
   };
 
   const getItemStyle = () => {
     const baseStyle = {
-      backgroundColor: isSelected ? "#e3f2fd" : "#ffffff",
-      borderColor: isHovered ? "#2196f3" : "#e0e0e0",
-      transform: isHovered ? "translateY(-1px)" : "translateY(0)",
-      boxShadow: isHovered
-        ? "0 4px 8px rgba(0,0,0,0.1)"
-        : "0 2px 4px rgba(0,0,0,0.05)",
+      backgroundColor: isSelected ? '#e3f2fd' : '#ffffff',
+      borderColor: isHovered ? '#2196f3' : '#e0e0e0',
+      transform: isHovered ? 'translateY(-1px)' : 'translateY(0)',
+      boxShadow: isHovered ? '0 4px 8px rgba(0,0,0,0.1)' : '0 2px 4px rgba(0,0,0,0.05)',
     };
 
-    if (transaction.type === "debit") {
+    if (transaction.type === 'debit') {
       return {
         ...baseStyle,
-        borderLeft: "4px solid #f44336",
+        borderLeft: '4px solid #f44336',
       };
     } else {
       return {
         ...baseStyle,
-        borderLeft: "4px solid #4caf50",
+        borderLeft: '4px solid #4caf50',
       };
     }
   };
@@ -179,15 +173,12 @@ const TransactionItem: React.FC<{
         </div>
         <div className="transaction-amount">
           <span className={`amount ${transaction.type}`}>
-            {transaction.type === "debit" ? "-" : "+"}
+            {transaction.type === 'debit' ? '-' : '+'}
             {formatCurrency(transaction.amount)}
           </span>
         </div>
       </div>
-      <div
-        className="transaction-details"
-        id={`transaction-${transaction.id}-details`}
-      >
+      <div className="transaction-details" id={`transaction-${transaction.id}-details`}>
         <div
           className="transaction-description"
           aria-label={`Description: ${transaction.description}`}
@@ -209,10 +200,7 @@ const TransactionItem: React.FC<{
             {transaction.status}
           </span>
           {transaction.location && (
-            <span
-              className="transaction-location"
-              aria-label={`Location: ${transaction.location}`}
-            >
+            <span className="transaction-location" aria-label={`Location: ${transaction.location}`}>
               {transaction.location}
             </span>
           )}

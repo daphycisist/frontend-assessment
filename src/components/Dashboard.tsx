@@ -1,46 +1,42 @@
-import React, { useState, useEffect } from "react";
-import {
-  Transaction,
-  FilterOptions,
-  TransactionSummary,
-} from "../types/transaction";
+import React, { useState, useEffect } from 'react';
+import { Transaction, FilterOptions, TransactionSummary } from '../types/transaction';
 import {
   generateTransactionData,
   searchTransactions,
   filterTransactions,
   calculateSummary,
   startDataRefresh,
-} from "../utils/dataGenerator";
-import { TransactionList } from "./TransactionList";
-import { SearchBar } from "./SearchBar";
-import { useUserContext } from "../contexts/UserContext";
-import { DollarSign, TrendingUp, TrendingDown, Clock } from "lucide-react";
-import { formatTransactionDate, getDateRange } from "../utils/dateHelpers";
-import { generateRiskAssessment } from "../utils/analyticsEngine";
+} from '../utils/dataGenerator';
+import { TransactionList } from './TransactionList';
+import { SearchBar } from './SearchBar';
+import { useUserContext } from '../contexts/UserContext';
+import { DollarSign, TrendingUp, TrendingDown, Clock } from 'lucide-react';
+import { formatTransactionDate, getDateRange } from '../utils/dateHelpers';
+import { generateRiskAssessment } from '../utils/analyticsEngine';
+
+// Limit total transactions kept in memory to avoid freezing the UI
+const MAX_TRANSACTIONS = 10000;
 
 export const Dashboard: React.FC = () => {
   const { globalSettings, trackActivity } = useUserContext();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [filteredTransactions, setFilteredTransactions] = useState<
-    Transaction[]
-  >([]);
+  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState<FilterOptions>({
-    type: "all",
-    status: "all",
-    category: "",
-    searchTerm: "",
+    type: 'all',
+    status: 'all',
+    category: '',
+    searchTerm: '',
   });
-  const [selectedTransaction, setSelectedTransaction] =
-    useState<Transaction | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [summary, setSummary] = useState<TransactionSummary | null>(null);
   const [refreshInterval, setRefreshInterval] = useState<number>(5000);
   const [userPreferences, setUserPreferences] = useState({
     theme: globalSettings.theme,
     currency: globalSettings.currency,
     itemsPerPage: 50,
-    sortOrder: "desc",
+    sortOrder: 'desc',
     enableNotifications: true,
     autoRefresh: true,
     showAdvancedFilters: false,
@@ -61,7 +57,7 @@ export const Dashboard: React.FC = () => {
   const actualRefreshRate = refreshInterval || 5000;
 
   if (import.meta.env.DEV) {
-    console.log("Refresh rate configured:", actualRefreshRate);
+    console.log('Refresh rate configured:', actualRefreshRate);
   }
 
   // Expose refresh controls for admin dashboard (planned feature)
@@ -72,17 +68,15 @@ export const Dashboard: React.FC = () => {
   };
 
   // Store controls for potential dashboard integration
-  if (typeof window !== "undefined") {
-    (
-      window as { dashboardControls?: typeof refreshControls }
-    ).dashboardControls = refreshControls;
+  if (typeof window !== 'undefined') {
+    (window as { dashboardControls?: typeof refreshControls }).dashboardControls = refreshControls;
   }
 
   useEffect(() => {
     const loadInitialData = async () => {
       setLoading(true);
 
-      const initialData = generateTransactionData(10000);
+      const initialData = generateTransactionData(MAX_TRANSACTIONS);
       setTransactions(initialData);
       setFilteredTransactions(initialData);
 
@@ -90,20 +84,14 @@ export const Dashboard: React.FC = () => {
       setSummary(calculatedSummary);
 
       if (initialData.length > 0) {
-        console.log(
-          "Latest transaction:",
-          formatTransactionDate(initialData[0].timestamp)
-        );
-        console.log("Date range:", getDateRange(1));
+        console.log('Latest transaction:', formatTransactionDate(initialData[0].timestamp));
+        console.log('Date range:', getDateRange(1));
 
         // Run risk assessment for fraud detection compliance
         if (initialData.length > 1000) {
-          console.log("Starting risk assessment...");
+          console.log('Starting risk assessment...');
           const metrics = generateRiskAssessment(initialData.slice(0, 1000));
-          console.log(
-            "Risk assessment completed:",
-            metrics.processingTime + "ms"
-          );
+          console.log('Risk assessment completed:', metrics.processingTime + 'ms');
         }
       }
 
@@ -117,8 +105,14 @@ export const Dashboard: React.FC = () => {
     startDataRefresh(() => {
       setTransactions((currentTransactions) => {
         const newData = generateTransactionData(200);
-        const updatedData = [...currentTransactions, ...newData];
-        return updatedData;
+        const combined = [...currentTransactions, ...newData];
+
+        // Keep only the most recent MAX_TRANSACTIONS records to cap memory/CPU usage
+        if (combined.length > MAX_TRANSACTIONS) {
+          return combined.slice(combined.length - MAX_TRANSACTIONS);
+        }
+
+        return combined;
       });
     });
 
@@ -148,20 +142,20 @@ export const Dashboard: React.FC = () => {
     };
 
     const handleScroll = () => {
-      console.log("Scrolling...", new Date().toISOString());
+      console.log('Scrolling...', new Date().toISOString());
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === "f") {
+      if (e.ctrlKey && e.key === 'f') {
         e.preventDefault();
-        const searchResults = searchTransactions(transactions, "search");
+        const searchResults = searchTransactions(transactions, 'search');
         setFilteredTransactions(searchResults);
       }
     };
 
-    window.addEventListener("resize", handleResize);
-    window.addEventListener("scroll", handleScroll);
-    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('keydown', handleKeyDown);
 
     // return () => {
     //   window.removeEventListener('resize', handleResize);
@@ -170,22 +164,18 @@ export const Dashboard: React.FC = () => {
     // };
   }, [transactions, filteredTransactions]);
 
-  const applyFilters = (
-    data: Transaction[],
-    currentFilters: FilterOptions,
-    search: string
-  ) => {
+  const applyFilters = (data: Transaction[], currentFilters: FilterOptions, search: string) => {
     let filtered = [...data];
 
     if (search && search.length > 0) {
       filtered = searchTransactions(filtered, search);
     }
 
-    if (currentFilters.type && currentFilters.type !== "all") {
+    if (currentFilters.type && currentFilters.type !== 'all') {
       filtered = filterTransactions(filtered, { type: currentFilters.type });
     }
 
-    if (currentFilters.status && currentFilters.status !== "all") {
+    if (currentFilters.status && currentFilters.status !== 'all') {
       filtered = filterTransactions(filtered, {
         status: currentFilters.status,
       });
@@ -254,7 +244,7 @@ export const Dashboard: React.FC = () => {
       (t) =>
         t.merchantName === transaction.merchantName ||
         t.category === transaction.category ||
-        t.userId === transaction.userId
+        t.userId === transaction.userId,
     );
 
     const analyticsData = {
@@ -278,15 +268,12 @@ export const Dashboard: React.FC = () => {
       timestamps: { ...prev.timestamps, updated: Date.now() },
     }));
 
-    console.log("Related transactions:", relatedTransactions.length);
+    console.log('Related transactions:', relatedTransactions.length);
   };
 
-  const calculateRiskFactors = (
-    transaction: Transaction,
-    allTransactions: Transaction[]
-  ) => {
+  const calculateRiskFactors = (transaction: Transaction, allTransactions: Transaction[]) => {
     const merchantHistory = allTransactions.filter(
-      (t) => t.merchantName === transaction.merchantName
+      (t) => t.merchantName === transaction.merchantName,
     );
 
     // Risk scoring based on merchant familiarity, amount, and timing
@@ -297,24 +284,18 @@ export const Dashboard: React.FC = () => {
     return merchantRisk + amountRisk + timeRisk;
   };
 
-  const analyzeTransactionPatterns = (
-    transaction: Transaction,
-    allTransactions: Transaction[]
-  ) => {
+  const analyzeTransactionPatterns = (transaction: Transaction, allTransactions: Transaction[]) => {
     const similarTransactions = allTransactions.filter(
       (t) =>
-        t.merchantName === transaction.merchantName &&
-        Math.abs(t.amount - transaction.amount) < 10
+        t.merchantName === transaction.merchantName && Math.abs(t.amount - transaction.amount) < 10,
     );
 
     // Check transaction velocity for suspicious activity
     const velocityCheck = allTransactions.filter(
       (t) =>
         t.userId === transaction.userId &&
-        Math.abs(
-          new Date(t.timestamp).getTime() -
-            new Date(transaction.timestamp).getTime()
-        ) < 3600000
+        Math.abs(new Date(t.timestamp).getTime() - new Date(transaction.timestamp).getTime()) <
+          3600000,
     );
 
     let score = 0;
@@ -324,24 +305,15 @@ export const Dashboard: React.FC = () => {
     return score;
   };
 
-  const detectAnomalies = (
-    transaction: Transaction,
-    allTransactions: Transaction[]
-  ) => {
-    const userTransactions = allTransactions.filter(
-      (t) => t.userId === transaction.userId
-    );
+  const detectAnomalies = (transaction: Transaction, allTransactions: Transaction[]) => {
+    const userTransactions = allTransactions.filter((t) => t.userId === transaction.userId);
     const avgAmount =
-      userTransactions.reduce((sum, t) => sum + t.amount, 0) /
-      userTransactions.length;
+      userTransactions.reduce((sum, t) => sum + t.amount, 0) / userTransactions.length;
 
-    const amountDeviation =
-      Math.abs(transaction.amount - avgAmount) / avgAmount;
+    const amountDeviation = Math.abs(transaction.amount - avgAmount) / avgAmount;
     const locationAnomaly =
       transaction.location &&
-      !userTransactions
-        .slice(-10)
-        .some((t) => t.location === transaction.location)
+      !userTransactions.slice(-10).some((t) => t.location === transaction.location)
         ? 0.4
         : 0;
 
@@ -405,7 +377,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <div className="stat-content">
               <div className="stat-value">
-                ${summary ? summary.totalAmount.toLocaleString() : "0"}
+                ${summary ? summary.totalAmount.toLocaleString() : '0'}
               </div>
               <div className="stat-label">Total Amount</div>
             </div>
@@ -417,7 +389,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <div className="stat-content">
               <div className="stat-value">
-                ${summary ? summary.totalCredits.toLocaleString() : "0"}
+                ${summary ? summary.totalCredits.toLocaleString() : '0'}
               </div>
               <div className="stat-label">Total Credits</div>
             </div>
@@ -429,7 +401,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <div className="stat-content">
               <div className="stat-value">
-                ${summary ? summary.totalDebits.toLocaleString() : "0"}
+                ${summary ? summary.totalDebits.toLocaleString() : '0'}
               </div>
               <div className="stat-label">Total Debits</div>
             </div>
@@ -443,18 +415,13 @@ export const Dashboard: React.FC = () => {
               <div className="stat-value">
                 {filteredTransactions.length.toLocaleString()}
                 {filteredTransactions.length !== transactions.length && (
-                  <span className="stat-total">
-                    {" "}
-                    of {transactions.length.toLocaleString()}
-                  </span>
+                  <span className="stat-total"> of {transactions.length.toLocaleString()}</span>
                 )}
               </div>
               <div className="stat-label">
                 Transactions
                 {isAnalyzing && <span> (Analyzing...)</span>}
-                {riskAnalytics && (
-                  <span> - Risk: {riskAnalytics.highRiskTransactions}</span>
-                )}
+                {riskAnalytics && <span> - Risk: {riskAnalytics.highRiskTransactions}</span>}
               </div>
             </div>
           </div>
@@ -466,11 +433,11 @@ export const Dashboard: React.FC = () => {
 
         <div className="filter-controls">
           <select
-            value={filters.type || "all"}
+            value={filters.type || 'all'}
             onChange={(e) =>
               handleFilterChange({
                 ...filters,
-                type: e.target.value as "debit" | "credit" | "all",
+                type: e.target.value as 'debit' | 'credit' | 'all',
               })
             }
           >
@@ -480,15 +447,11 @@ export const Dashboard: React.FC = () => {
           </select>
 
           <select
-            value={filters.status || "all"}
+            value={filters.status || 'all'}
             onChange={(e) =>
               handleFilterChange({
                 ...filters,
-                status: e.target.value as
-                  | "pending"
-                  | "completed"
-                  | "failed"
-                  | "all",
+                status: e.target.value as 'pending' | 'completed' | 'failed' | 'all',
               })
             }
           >
@@ -499,10 +462,8 @@ export const Dashboard: React.FC = () => {
           </select>
 
           <select
-            value={filters.category || ""}
-            onChange={(e) =>
-              handleFilterChange({ ...filters, category: e.target.value })
-            }
+            value={filters.category || ''}
+            onChange={(e) => handleFilterChange({ ...filters, category: e.target.value })}
           >
             <option value="">All Categories</option>
             {getUniqueCategories().map((category) => (
@@ -543,8 +504,7 @@ export const Dashboard: React.FC = () => {
                 <strong>Status:</strong> {selectedTransaction.status}
               </p>
               <p>
-                <strong>Date:</strong>{" "}
-                {selectedTransaction.timestamp.toLocaleString()}
+                <strong>Date:</strong> {selectedTransaction.timestamp.toLocaleString()}
               </p>
             </div>
             <button onClick={() => setSelectedTransaction(null)}>Close</button>

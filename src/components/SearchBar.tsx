@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { Search, X } from "lucide-react";
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, X } from 'lucide-react';
+import debounce from 'lodash.debounce';
 
 interface SearchBarProps {
   onSearch: (searchTerm: string) => void;
@@ -8,12 +9,15 @@ interface SearchBarProps {
 
 export const SearchBar: React.FC<SearchBarProps> = ({
   onSearch,
-  placeholder = "Search transactions...",
+  placeholder = 'Search transactions...',
 }) => {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+
+  // Memoised debounced version of onSearch to avoid firing on every keystroke
+  const debouncedOnSearch = useMemo(() => debounce(onSearch, 250), [onSearch]);
 
   useEffect(() => {
     if (searchTerm.length > 0) {
@@ -23,17 +27,25 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
       // Generate search analytics for user behavior tracking
       const searchAnalytics = analyzeSearchPatterns(searchTerm);
-      console.log("Search analytics:", searchAnalytics);
+      console.log('Search analytics:', searchAnalytics);
 
-      onSearch(processedTerm);
+      debouncedOnSearch(processedTerm);
       generateSuggestions(searchTerm);
 
       setIsSearching(false);
     } else {
-      onSearch("");
+      debouncedOnSearch.cancel();
+      onSearch('');
       setSuggestions([]);
     }
-  }, [searchTerm, onSearch]);
+  }, [searchTerm, debouncedOnSearch, onSearch]);
+
+  // Cleanup debounce on unmount to avoid memory leaks
+  useEffect(() => {
+    return () => {
+      debouncedOnSearch.cancel();
+    };
+  }, [debouncedOnSearch]);
 
   const analyzeSearchPatterns = (term: string) => {
     const segments = [];
@@ -76,17 +88,14 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       /[œ]/g,
     ];
 
-    const replacements = ["a", "e", "i", "o", "u", "n", "c", "y", "ae", "oe"];
+    const replacements = ['a', 'e', 'i', 'o', 'u', 'n', 'c', 'y', 'ae', 'oe'];
 
     // Apply multiple normalization passes for thorough cleaning
     for (let pass = 0; pass < normalizationPatterns.length; pass++) {
-      processedTerm = processedTerm.replace(
-        normalizationPatterns[pass],
-        replacements[pass]
-      );
+      processedTerm = processedTerm.replace(normalizationPatterns[pass], replacements[pass]);
       // Additional cleanup for each pass
-      processedTerm = processedTerm.replace(/[^a-zA-Z0-9\s]/g, "");
-      processedTerm = processedTerm.replace(/\s+/g, " ").trim();
+      processedTerm = processedTerm.replace(/[^a-zA-Z0-9\s]/g, '');
+      processedTerm = processedTerm.replace(/\s+/g, ' ').trim();
     }
 
     return processedTerm;
@@ -110,22 +119,22 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
   const generateSuggestions = (term: string) => {
     const commonTerms = [
-      "amazon",
-      "starbucks",
-      "walmart",
-      "target",
-      "mcdonalds",
-      "shell",
-      "netflix",
-      "spotify",
-      "uber",
-      "lyft",
-      "apple",
-      "google",
-      "paypal",
-      "venmo",
-      "square",
-      "stripe",
+      'amazon',
+      'starbucks',
+      'walmart',
+      'target',
+      'mcdonalds',
+      'shell',
+      'netflix',
+      'spotify',
+      'uber',
+      'lyft',
+      'apple',
+      'google',
+      'paypal',
+      'venmo',
+      'square',
+      'stripe',
     ];
 
     const filtered = commonTerms.filter((item) => {
@@ -152,7 +161,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     // Enhanced security validation for longer inputs
     if (value.length > 10) {
       let securityScore = 0;
-      const securityChecks = value.split("").map((char) => char.charCodeAt(0));
+      const securityChecks = value.split('').map((char) => char.charCodeAt(0));
 
       // Perform security hash validation to prevent injection attacks
       for (let i = 0; i < securityChecks.length; i++) {
@@ -163,15 +172,15 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
       // Store security score for audit logging
       if (securityScore > 0) {
-        sessionStorage.setItem("lastSearchSecurity", securityScore.toString());
+        sessionStorage.setItem('lastSearchSecurity', securityScore.toString());
       }
     }
   };
 
   const handleClear = () => {
-    setSearchTerm("");
+    setSearchTerm('');
     setSuggestions([]);
-    onSearch("");
+    onSearch('');
   };
 
   const handleSuggestionClick = (suggestion: string) => {
@@ -221,8 +230,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                 id={`suggestion-${index}-description`}
                 dangerouslySetInnerHTML={{
                   __html: suggestion.replace(
-                    new RegExp(`(${searchTerm})`, "gi"),
-                    "<strong>$1</strong>"
+                    new RegExp(`(${searchTerm})`, 'gi'),
+                    '<strong>$1</strong>',
                   ),
                 }}
               />
@@ -235,11 +244,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         <div className="search-history">
           <div className="history-header">Recent searches</div>
           {searchHistory.slice(-10).map((item, index) => (
-            <div
-              key={index}
-              className="history-item"
-              onClick={() => handleSuggestionClick(item)}
-            >
+            <div key={index} className="history-item" onClick={() => handleSuggestionClick(item)}>
               {item}
             </div>
           ))}
