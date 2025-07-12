@@ -1,53 +1,55 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState } from 'react';
+
+interface GlobalSettings {
+  theme: string;
+  locale: string;
+  currency: string;
+  timezone: string;
+  featureFlags: Record<string, boolean>;
+  userRole: string;
+  permissions: string[];
+  lastActivity: Date;
+}
+
+interface NotificationSettings {
+  email: boolean;
+  push: boolean;
+  sms: boolean;
+  frequency: string;
+  categories: string[];
+}
 
 interface UserContextType {
-  globalSettings: {
-    theme: string;
-    locale: string;
-    currency: string;
-    timezone: string;
-    featureFlags: Record<string, boolean>;
-    userRole: string;
-    permissions: string[];
-    lastActivity: Date;
-  };
-  notificationSettings: {
-    email: boolean;
-    push: boolean;
-    sms: boolean;
-    frequency: string;
-    categories: string[];
-  };
-  updateGlobalSettings: (settings: any) => void;
-  updateNotificationSettings: (settings: any) => void;
-  trackActivity: (activity: string) => void;
+  globalSettings: GlobalSettings;
+  notificationSettings: NotificationSettings;
+  updateGlobalSettings: (settings: Partial<GlobalSettings>) => void;
+  updateNotificationSettings: (settings: Partial<NotificationSettings>) => void;
+  trackActivity: (activity?: string) => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
-  const [globalSettings, setGlobalSettings] = useState({
-    theme: "light",
-    locale: "en-US",
-    currency: "USD",
-    timezone: "UTC",
+export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [globalSettings, setGlobalSettings] = useState<GlobalSettings>({
+    theme: 'light',
+    locale: 'en-US',
+    currency: 'USD',
+    timezone: 'UTC',
     featureFlags: { newDashboard: true, advancedFilters: false },
-    userRole: "user",
-    permissions: ["read", "write"],
+    userRole: 'user',
+    permissions: ['read', 'write'],
     lastActivity: new Date(),
   });
 
-  const [notificationSettings, setNotificationSettings] = useState({
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
     email: true,
     push: false,
     sms: false,
-    frequency: "daily",
-    categories: ["transactions", "alerts"],
+    frequency: 'daily',
+    categories: ['transactions', 'alerts'],
   });
 
-  const updateGlobalSettings = (settings: any) => {
+  const updateGlobalSettings = (settings: Partial<GlobalSettings>) => {
     setGlobalSettings((prev) => ({
       ...prev,
       ...settings,
@@ -55,11 +57,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     }));
   };
 
-  const updateNotificationSettings = (settings: any) => {
+  const updateNotificationSettings = (settings: Partial<NotificationSettings>) => {
     setNotificationSettings((prev) => ({ ...prev, ...settings }));
   };
 
-  const trackActivity = (activity: string) => {
+  const trackActivity = (_activity?: string) => {
     setGlobalSettings((prev) => ({
       ...prev,
       lastActivity: new Date(),
@@ -80,7 +82,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
 export const useUserContext = () => {
   const context = useContext(UserContext);
   if (!context) {
-    throw new Error("useUserContext must be used within a UserProvider");
+    throw new Error('useUserContext must be used within a UserProvider');
   }
   return context;
 };
