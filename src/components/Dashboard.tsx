@@ -8,10 +8,11 @@ import {
   startDataRefresh,
 } from '../utils/dataGenerator';
 import { TransactionList } from './TransactionList';
-import { SearchBar } from './SearchBar';
 import { useUserContext } from '../contexts/UserContext';
-import { DollarSign, TrendingUp, TrendingDown, Clock } from 'lucide-react';
 import { formatTransactionDate, getDateRange } from '../utils/dateHelpers';
+import { HeaderStats } from './HeaderStats';
+import { FilterPanel } from './FilterPanel';
+import { TransactionModal } from './TransactionModal';
 import { generateRiskAssessment } from '../utils/analyticsEngine';
 
 // Limit total transactions kept in memory to avoid freezing the UI
@@ -370,110 +371,21 @@ export const Dashboard: React.FC = () => {
     <div className="dashboard">
       <div className="dashboard-header">
         <h1>FinTech Dashboard</h1>
-        <div className="dashboard-stats">
-          <div className="stat-card">
-            <div className="stat-icon">
-              <DollarSign size={24} />
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">
-                ${summary ? summary.totalAmount.toLocaleString() : '0'}
-              </div>
-              <div className="stat-label">Total Amount</div>
-            </div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon">
-              <TrendingUp size={24} />
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">
-                ${summary ? summary.totalCredits.toLocaleString() : '0'}
-              </div>
-              <div className="stat-label">Total Credits</div>
-            </div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon">
-              <TrendingDown size={24} />
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">
-                ${summary ? summary.totalDebits.toLocaleString() : '0'}
-              </div>
-              <div className="stat-label">Total Debits</div>
-            </div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon">
-              <Clock size={24} />
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">
-                {filteredTransactions.length.toLocaleString()}
-                {filteredTransactions.length !== transactions.length && (
-                  <span className="stat-total"> of {transactions.length.toLocaleString()}</span>
-                )}
-              </div>
-              <div className="stat-label">
-                Transactions
-                {isAnalyzing && <span> (Analyzing...)</span>}
-                {riskAnalytics && <span> - Risk: {riskAnalytics.highRiskTransactions}</span>}
-              </div>
-            </div>
-          </div>
-        </div>
+        <HeaderStats
+          summary={summary}
+          filteredCount={filteredTransactions.length}
+          totalCount={transactions.length}
+          isAnalyzing={isAnalyzing}
+          highRiskTransactions={riskAnalytics?.highRiskTransactions}
+        />
       </div>
 
-      <div className="dashboard-controls">
-        <SearchBar onSearch={handleSearch} />
-
-        <div className="filter-controls">
-          <select
-            value={filters.type || 'all'}
-            onChange={(e) =>
-              handleFilterChange({
-                ...filters,
-                type: e.target.value as 'debit' | 'credit' | 'all',
-              })
-            }
-          >
-            <option value="all">All Types</option>
-            <option value="debit">Debit</option>
-            <option value="credit">Credit</option>
-          </select>
-
-          <select
-            value={filters.status || 'all'}
-            onChange={(e) =>
-              handleFilterChange({
-                ...filters,
-                status: e.target.value as 'pending' | 'completed' | 'failed' | 'all',
-              })
-            }
-          >
-            <option value="all">All Status</option>
-            <option value="completed">Completed</option>
-            <option value="pending">Pending</option>
-            <option value="failed">Failed</option>
-          </select>
-
-          <select
-            value={filters.category || ''}
-            onChange={(e) => handleFilterChange({ ...filters, category: e.target.value })}
-          >
-            <option value="">All Categories</option>
-            {getUniqueCategories().map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <FilterPanel
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        onSearch={handleSearch}
+        categories={getUniqueCategories()}
+      />
 
       <div className="dashboard-content">
         <TransactionList
@@ -484,32 +396,10 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {selectedTransaction && (
-        <div className="transaction-detail-modal">
-          <div className="modal-content">
-            <h3>Transaction Details</h3>
-            <div className="transaction-details">
-              <p>
-                <strong>ID:</strong> {selectedTransaction.id}
-              </p>
-              <p>
-                <strong>Merchant:</strong> {selectedTransaction.merchantName}
-              </p>
-              <p>
-                <strong>Amount:</strong> ${selectedTransaction.amount}
-              </p>
-              <p>
-                <strong>Category:</strong> {selectedTransaction.category}
-              </p>
-              <p>
-                <strong>Status:</strong> {selectedTransaction.status}
-              </p>
-              <p>
-                <strong>Date:</strong> {selectedTransaction.timestamp.toLocaleString()}
-              </p>
-            </div>
-            <button onClick={() => setSelectedTransaction(null)}>Close</button>
-          </div>
-        </div>
+        <TransactionModal
+          transaction={selectedTransaction}
+          onClose={() => setSelectedTransaction(null)}
+        />
       )}
     </div>
   );

@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { FixedSizeList as List, ListChildComponentProps } from 'react-window';
+import { FixedSizeList as RWFixedSizeList, ListChildComponentProps } from 'react-window';
+
+// Workaround for typing issue with react-window + React 18 JSX
+const FixedSizeList = RWFixedSizeList as unknown as React.ComponentType<unknown> &
+  typeof RWFixedSizeList;
 import { Transaction } from '../types/transaction';
 import { format } from 'date-fns';
 
@@ -100,9 +104,14 @@ export const TransactionList: React.FC<TransactionListProps> = ({
         aria-rowcount={sortedTransactions.length}
         tabIndex={0}
       >
-        <List height={600} itemCount={sortedTransactions.length} itemSize={80} width="100%">
+        <FixedSizeList
+          height={600}
+          itemCount={sortedTransactions.length}
+          itemSize={80}
+          width="100%"
+        >
           {Row}
-        </List>
+        </FixedSizeList>
       </div>
     </div>
   );
