@@ -9,6 +9,7 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,md}\"",
     "prepare": "husky install",
+    "test": "vitest",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -36,6 +37,10 @@
     "lint-staged": "^14.0.0",
     "@types/react-window": "^1.8.5",
     "@types/lodash.debounce": "^4.0.6",
+    "vitest": "^1.5.0",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/jest-dom": "^6.0.0",
+    "jsdom": "^22.0.0",
     "typescript": "^5.0.2",
     "vite": "^4.4.5"
   },
