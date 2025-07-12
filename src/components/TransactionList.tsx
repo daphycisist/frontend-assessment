@@ -5,6 +5,7 @@ import { FixedSizeList as RWFixedSizeList, ListChildComponentProps } from 'react
 const FixedSizeList = RWFixedSizeList as unknown as React.ComponentType<unknown> &
   typeof RWFixedSizeList;
 import { Transaction } from '../types/transaction';
+import { TxType } from '../constants/transactions';
 import { format } from 'date-fns';
 
 interface TransactionListProps {
@@ -138,7 +139,7 @@ const TransactionItem: React.FC<{
       boxShadow: isHovered ? '0 4px 8px rgba(0,0,0,0.1)' : '0 2px 4px rgba(0,0,0,0.05)',
     };
 
-    if (transaction.type === 'debit') {
+    if (transaction.type === TxType.Debit) {
       return {
         ...baseStyle,
         borderLeft: '4px solid #f44336',

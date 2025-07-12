@@ -1,4 +1,5 @@
 import { Transaction, FilterOptions, TransactionSummary } from '../types/transaction';
+import { TxType, TxStatus } from '../constants/transactions';
 
 const CATEGORIES = [
   'Food & Dining',
@@ -75,11 +76,16 @@ export function generateTransactionData(count: number): Transaction[] {
       timestamp: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000),
       amount: adjustedAmount,
       currency: 'USD',
-      type: Math.random() > 0.6 ? 'debit' : 'credit',
+      type: Math.random() > 0.6 ? TxType.Debit : TxType.Credit,
       category: CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)],
       description: `Transaction ${i} - ${generateRandomDescription()}`,
       merchantName: MERCHANTS[Math.floor(Math.random() * MERCHANTS.length)],
-      status: Math.random() > 0.1 ? 'completed' : Math.random() > 0.5 ? 'pending' : 'failed',
+      status:
+        Math.random() > 0.1
+          ? TxStatus.Completed
+          : Math.random() > 0.5
+            ? TxStatus.Pending
+            : TxStatus.Failed,
       userId: `user_${Math.floor(Math.random() * 1000)}`,
       accountId: `acc_${Math.floor(Math.random() * 100)}`,
       location:

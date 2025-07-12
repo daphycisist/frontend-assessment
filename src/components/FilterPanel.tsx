@@ -1,5 +1,6 @@
 import React from 'react';
 import { FilterOptions } from '../types/transaction';
+import { TxType, TxStatus, ALL_TYPES_OPTION, ALL_STATUS_OPTION } from '../constants/transactions';
 import { SearchBar } from './SearchBar';
 
 interface FilterPanelProps {
@@ -21,29 +22,27 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
 
       <div className="filter-controls">
         <select
-          value={filters.type || 'all'}
-          onChange={(e) =>
-            onFilterChange({ ...filters, type: e.target.value as 'debit' | 'credit' | 'all' })
-          }
+          value={filters.type || ALL_TYPES_OPTION}
+          onChange={(e) => onFilterChange({ ...filters, type: e.target.value as TxType | 'all' })}
         >
-          <option value="all">All Types</option>
-          <option value="debit">Debit</option>
-          <option value="credit">Credit</option>
+          <option value={ALL_TYPES_OPTION}>All Types</option>
+          <option value={TxType.Debit}>Debit</option>
+          <option value={TxType.Credit}>Credit</option>
         </select>
 
         <select
-          value={filters.status || 'all'}
+          value={filters.status || ALL_STATUS_OPTION}
           onChange={(e) =>
             onFilterChange({
               ...filters,
-              status: e.target.value as 'pending' | 'completed' | 'failed' | 'all',
+              status: e.target.value as TxStatus | 'all',
             })
           }
         >
-          <option value="all">All Status</option>
-          <option value="completed">Completed</option>
-          <option value="pending">Pending</option>
-          <option value="failed">Failed</option>
+          <option value={ALL_STATUS_OPTION}>All Status</option>
+          <option value={TxStatus.Completed}>Completed</option>
+          <option value={TxStatus.Pending}>Pending</option>
+          <option value={TxStatus.Failed}>Failed</option>
         </select>
 
         <select
