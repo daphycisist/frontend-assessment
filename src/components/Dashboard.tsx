@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { RefreshCcw } from "lucide-react";
+
 import {
   Transaction,
   FilterOptions,
@@ -24,6 +26,14 @@ import {
 } from "../utils/analyticsEngine";
 import { formatNumber } from "../utils/dateHelpers";
 
+
+const defaultFilters: FilterOptions = {
+  type: "all",
+  status: "all",
+  category: "",
+  searchTerm: "",
+};
+
 export const Dashboard: React.FC = () => {
   const { globalSettings, trackActivity } = useUserContext();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -31,12 +41,8 @@ export const Dashboard: React.FC = () => {
     Transaction[]
   >([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState<FilterOptions>({
-    type: "all",
-    status: "all",
-    category: "",
-    searchTerm: "",
-  });
+  const [isSearching, setIsSearching] = useState(false);
+  const [filters, setFilters] = useState<FilterOptions>(defaultFilters);
   const [selectedTransaction, setSelectedTransaction] =
     useState<Transaction | null>(null);
   const [summary, setSummary] = useState<TransactionSummary | null>(null);
@@ -124,6 +130,7 @@ export const Dashboard: React.FC = () => {
     applyFilters(transactions, filters);
   }, [filters]);
 
+
   useEffect(() => {
 
     (async () => {
@@ -143,6 +150,9 @@ export const Dashboard: React.FC = () => {
     data: Transaction[],
     currentFilters: FilterOptions,
   ) => {
+    
+    setIsSearching(true);
+
     let filtered = [...data];
 
     if (currentFilters.searchTerm && currentFilters.searchTerm.length > 0) {
@@ -197,6 +207,11 @@ export const Dashboard: React.FC = () => {
       ...prev,
       timestamps: { ...prev.timestamps, updated: Date.now() },
     }));
+
+
+    setTimeout(() => {
+      setIsSearching(false);
+    }, 500);
   }, [transactions, filters, userPreferences]);
 
   const handleSearch = async (searchTerm: string) => {
@@ -206,8 +221,6 @@ export const Dashboard: React.FC = () => {
 
   const handleFilterChange = (newFilters: FilterOptions) => {
     setFilters(newFilters);
-
-    applyFilters(transactions, newFilters);
   };
 
   const handleTransactionClick = (transaction: Transaction) => {
@@ -244,7 +257,6 @@ export const Dashboard: React.FC = () => {
     console.log("Related transactions:", relatedTransactions.length);
   };
 
-
   const runAdvancedAnalytics = async () => {
     if (transactions.length < 100) return;
 
@@ -280,6 +292,11 @@ export const Dashboard: React.FC = () => {
     const categories = new Set<string>();
     transactions.forEach((t) => categories.add(t.category));
     return Array.from(categories);
+  };
+
+  const handleResetFilters = () => {
+    setFilters(defaultFilters);
+    applyFilters(transactions, defaultFilters);
   };
 
   if (loading) {
@@ -359,7 +376,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       <div className="dashboard-controls">
-        <SearchBar onSearch={handleSearch} />
+        <SearchBar onSearch={handleSearch} isSearching={isSearching}  />
 
           <select
             value={filters.type || "all"}
@@ -407,8 +424,9 @@ export const Dashboard: React.FC = () => {
               </option>
             ))}
           </select>
-        <div className="filter-controls">
-        </div>
+          <button onClick={handleResetFilters} disabled={JSON.stringify(filters) === JSON.stringify(defaultFilters)}>
+            <RefreshCcw size={20} />
+          </button>
       </div>
 
       <div className="dashboard-content">

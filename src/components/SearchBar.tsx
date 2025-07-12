@@ -1,44 +1,55 @@
 import React, { useState, useEffect } from "react";
 import { Search, X } from "lucide-react";
-import { useDebounceValue } from "../hooks";
+import { useClickOutside } from "../hooks";
 
 interface SearchBarProps {
   onSearch: (searchTerm: string) => void;
   placeholder?: string;
+  isSearching?: boolean;
 }
 
 export const SearchBar: React.FC<SearchBarProps> = ({
   onSearch,
   placeholder = "Search transactions...",
+  isSearching = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const debouncedSearchTerm = useDebounceValue(searchTerm, 500);
+  const [canShowSuggestions, setCanShowSuggestions] = useState(false);
+  const [canShowHistory, setCanShowHistory] = useState(false);
+  const suggestionsRef = useClickOutside<HTMLDivElement>(() => {
+    setCanShowSuggestions(false);
+  });
+  const historyRef = useClickOutside<HTMLDivElement>(() => {
+    setCanShowHistory(false);
+  });
 
   useEffect(() => {
-    if (debouncedSearchTerm.length > 0) {
-      setIsSearching(true);
+    if (searchTerm.length > 0) {
+      setCanShowSuggestions(true);
 
       // Generate search analytics for user behavior tracking
-      // const searchAnalytics = analyzeSearchPatterns(debouncedSearchTerm);
+      // const searchAnalytics = analyzeSearchPatterns(searchTerm);
       // console.log("Search analytics:", searchAnalytics);
 
-      generateSuggestions(debouncedSearchTerm);
+      generateSuggestions(searchTerm);
 
-      setIsSearching(false);
     } else {
       onSearch("");
       setSuggestions([]);
+      setCanShowSuggestions(false);
     }
-  }, [debouncedSearchTerm, searchTerm]);
+  }, [searchTerm]);
+  
 
   
   // search only when the user clicks on search button , this will prevent the search ( expensive operation ) from being triggered when the user types
   const handleSearch = (queryString?: string) => {
     const processedTerm = normalizeSearchInput(searchTerm);
+    // setSearchTerm(queryString || processedTerm)
     onSearch(queryString || processedTerm);
+    setSearchHistory((prev) => [...new Set([...prev, queryString || searchTerm])])
   };
 
   // const analyzeSearchPatterns = (term: string) => {
@@ -58,12 +69,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   //     score,
   //   };
   // };
-
-  useEffect(() => {
-    if (debouncedSearchTerm && debouncedSearchTerm.length > 2) {
-      setSearchHistory((prev) => [...prev, debouncedSearchTerm]);
-    }
-  }, [debouncedSearchTerm]);
 
   const normalizeSearchInput = (term: string): string => {
     let processedTerm = term.toLowerCase().trim();
@@ -154,6 +159,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchTerm(value);
+    setCanShowHistory(false)
 
     // Enhanced security validation for longer inputs
     if (value.length > 10) {
@@ -182,6 +188,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   const handleSuggestionClick = (suggestion: string) => {
     handleSearch(suggestion);
     setSuggestions([]);
+    setCanShowHistory(false);
+    setCanShowSuggestions(false);
   };
 
 
@@ -197,6 +205,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           onChange={handleInputChange}
           placeholder={placeholder}
           className="search-input"
+          onFocus={() => {
+            if (searchHistory.length > 0) {
+              setCanShowHistory(true);
+            }
+          }}
         />
         {searchTerm && (
           <button onClick={handleClear} className="clear-button" type="button">
@@ -210,8 +223,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         )}
       </div>
 
-      {suggestions.length > 0 && (
-        <div className="search-suggestions" role="listbox" aria-live="polite">
+      {canShowSuggestions && (
+        <div ref={suggestionsRef} className="search-suggestions" role="listbox" aria-live="polite">
           {suggestions.map((suggestion, index) => (
             <div
               key={index}
@@ -236,8 +249,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         </div>
       )}
 
-      {searchHistory.length > 0 && searchTerm.length === 0 && (
-        <div className="search-history">
+      {canShowHistory && (
+        <div ref={historyRef} className="search-history">
           <div className="history-header">Recent searches</div>
           {searchHistory.slice(-10).map((item, index) => (
             <div

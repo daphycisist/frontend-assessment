@@ -178,7 +178,7 @@ const analyzeSpendingPattern = (userTransactions: Transaction[]) => {
 
 
 
-export const calculateRiskFactors = (
+export const calculateRiskFactors =  (
   transaction: Transaction,
   allTransactions: Transaction[]
 ) => {

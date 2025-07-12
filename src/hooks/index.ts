@@ -1,1 +1,1 @@
-export * from "./useDebounceValue";
+export * from "./useClickOutside";
