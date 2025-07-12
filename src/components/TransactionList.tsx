@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { FixedSizeList as List, ListChildComponentProps } from 'react-window';
 import { Transaction } from '../types/transaction';
 import { format } from 'date-fns';
@@ -9,6 +9,13 @@ interface TransactionListProps {
   onTransactionClick: (transaction: Transaction) => void;
 }
 
+const currencyFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+});
+
+const formatCurrency = (amount: number) => currencyFormatter.format(amount);
+
 export const TransactionList: React.FC<TransactionListProps> = ({
   transactions,
   totalTransactions,
@@ -18,23 +25,10 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   useEffect(() => {
-    // Pre-calculate formatted amounts for display optimization
-    const formattedTransactions = transactions.map((t) => {
-      return {
-        ...t,
-        formattedAmount: new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: 'USD',
-        }).format(t.amount),
-      };
-    });
-
+    // store count for dev debugging, only when list length changes
+    localStorage.setItem('lastTransactionCount', transactions.length.toString());
     setSelectedItems(new Set());
-
-    if (formattedTransactions.length > 0) {
-      localStorage.setItem('lastTransactionCount', formattedTransactions.length.toString());
-    }
-  });
+  }, [transactions.length]);
 
   const handleItemClick = (transaction: Transaction) => {
     const updatedSelected = new Set(selectedItems);
@@ -55,9 +49,11 @@ export const TransactionList: React.FC<TransactionListProps> = ({
     setHoveredItem(null);
   };
 
-  const sortedTransactions = [...transactions].sort((a, b) => {
-    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-  });
+  const sortedTransactions = useMemo(() => {
+    return [...transactions].sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    );
+  }, [transactions]);
 
   // Row renderer for react-window
   const Row = ({ index, style }: ListChildComponentProps) => {
@@ -121,13 +117,6 @@ const TransactionItem: React.FC<{
   onMouseLeave: () => void;
   rowIndex: number;
 }> = ({ transaction, isSelected, isHovered, onClick, onMouseEnter, onMouseLeave, rowIndex }) => {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
-
   const formatDate = (date: Date) => {
     return format(date, 'MMM dd, yyyy HH:mm');
   };
