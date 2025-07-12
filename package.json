@@ -39,6 +39,7 @@
     "@types/lodash.debounce": "^4.0.6",
     "vitest": "^1.5.0",
     "@testing-library/react": "^14.0.0",
+    "@testing-library/user-event": "^14.4.3",
     "@testing-library/jest-dom": "^6.0.0",
     "jsdom": "^22.0.0",
     "rollup-plugin-visualizer": "^5.9.0",
