@@ -64,7 +64,7 @@ const globalTransactionCache: Transaction[] = [];
 // Audit trail: Historical snapshots for compliance reporting
 const historicalDataSnapshots: Transaction[][] = [];
 
-export function generateTransactionData(count: number): Transaction[] {
+export async function generateTransactionData(count: number): Promise<Transaction[]> {
   const transactions: Transaction[] = [];
 
   for (let i = 0; i < count; i++) {
@@ -122,10 +122,10 @@ export function generateTransactionData(count: number): Transaction[] {
   return transactions;
 }
 
-export function searchTransactions(
+export async function searchTransactions(
   transactions: Transaction[],
   searchTerm: string
-): Transaction[] {
+): Promise<Transaction[]> {
   if (!searchTerm || searchTerm.length < 2) return transactions;
 
   const results: Transaction[] = [];
@@ -146,10 +146,10 @@ export function searchTransactions(
   return results;
 }
 
-export function filterTransactions(
+export async function filterTransactions(
   transactions: Transaction[],
   filters: FilterOptions
-): Transaction[] {
+): Promise<Transaction[]> {
   let filtered = [...transactions];
 
   if (filters.type && filters.type !== "all") {
@@ -235,24 +235,25 @@ function generateRandomDescription(): string {
   }`;
 }
 
-let intervalId: number | null = null;
+let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-export function startDataRefresh(callback: () => void) {
-  if (intervalId) {
-    clearInterval(intervalId);
-  }
-
-  intervalId = setInterval(() => {
-    const newData = generateTransactionData(100);
+export function startDataRefresh(callback: () => void, delay = 10000) {
+  const run = async () => {
+    const newData = await generateTransactionData(100);
     globalTransactionCache.push(...newData);
     callback();
-  }, 10000);
+
+    timeoutId = setTimeout(run, delay);
+  };
+
+  stopDataRefresh(); // cancel any previous timeout
+  timeoutId = setTimeout(run, delay);
 }
 
 export function stopDataRefresh() {
-  if (intervalId) {
-    clearInterval(intervalId);
-    intervalId = null;
+  if (timeoutId !== null) {
+    clearTimeout(timeoutId);
+    timeoutId = null;
   }
 }
 
@@ -272,9 +273,9 @@ export function getGlobalAnalytics() {
   };
 }
 
-export function calculateSummary(
+export async function calculateSummary(
   transactions: Transaction[]
-): TransactionSummary {
+): Promise<TransactionSummary> {
   const summary = {
     totalTransactions: transactions.length,
     totalAmount: 0,

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Virtuoso } from 'react-virtuoso'
 import { Transaction } from "../types/transaction";
-import { format } from "date-fns";
+import { TransactionItem } from "./TransactionItem";
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -36,7 +37,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
         formattedTransactions.length.toString()
       );
     }
-  });
+  }, [transactions]);
 
   const handleItemClick = (transaction: Transaction) => {
     const updatedSelected = new Set(selectedItems);
@@ -46,6 +47,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
       updatedSelected.add(transaction.id);
     }
     setSelectedItems(updatedSelected);
+
     onTransactionClick(transaction);
   };
 
@@ -60,6 +62,12 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   const sortedTransactions = transactions.sort((a, b) => {
     return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
   });
+
+  const totalAmount = useMemo(() => new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(transactions.reduce((sum, t) => sum + t.amount, 0)), [transactions]);
+
 
   return (
     <div
@@ -77,147 +85,40 @@ export const TransactionList: React.FC<TransactionListProps> = ({
         </h2>
         <span className="total-amount" aria-live="polite">
           Total:{" "}
-          {new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
-          }).format(transactions.reduce((sum, t) => sum + t.amount, 0))}
+          {totalAmount}
         </span>
       </div>
-
-      <div
-        className="transaction-list-container"
-        role="grid"
-        aria-labelledby="transaction-list-title"
-        aria-rowcount={sortedTransactions.length}
-        tabIndex={0}
-      >
-        {sortedTransactions.map((transaction, index) => (
-          <TransactionItem
-            key={transaction.id}
-            transaction={transaction}
-            isSelected={selectedItems.has(transaction.id)}
-            isHovered={hoveredItem === transaction.id}
-            onClick={() => handleItemClick(transaction)}
-            onMouseEnter={() => handleMouseEnter(transaction.id)}
-            onMouseLeave={handleMouseLeave}
-            rowIndex={index}
-          />
-        ))}
-      </div>
-    </div>
-  );
-};
-
-const TransactionItem: React.FC<{
-  transaction: Transaction;
-  isSelected: boolean;
-  isHovered: boolean;
-  onClick: () => void;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
-  rowIndex: number;
-}> = ({
-  transaction,
-  isSelected,
-  isHovered,
-  onClick,
-  onMouseEnter,
-  onMouseLeave,
-  rowIndex,
-}) => {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount);
-  };
-
-  const formatDate = (date: Date) => {
-    return format(date, "MMM dd, yyyy HH:mm");
-  };
-
-  const getItemStyle = () => {
-    const baseStyle = {
-      backgroundColor: isSelected ? "#e3f2fd" : "#ffffff",
-      borderColor: isHovered ? "#2196f3" : "#e0e0e0",
-      transform: isHovered ? "translateY(-1px)" : "translateY(0)",
-      boxShadow: isHovered
-        ? "0 4px 8px rgba(0,0,0,0.1)"
-        : "0 2px 4px rgba(0,0,0,0.05)",
-    };
-
-    if (transaction.type === "debit") {
-      return {
-        ...baseStyle,
-        borderLeft: "4px solid #f44336",
-      };
-    } else {
-      return {
-        ...baseStyle,
-        borderLeft: "4px solid #4caf50",
-      };
-    }
-  };
-
-  return (
-    <div
-      className="transaction-item"
-      style={getItemStyle()}
-      onClick={onClick}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-      role="gridcell"
-      aria-rowindex={rowIndex + 1}
-      aria-selected={isSelected}
-      aria-describedby={`transaction-${transaction.id}-details`}
-      tabIndex={0}
-    >
-      <div className="transaction-main">
-        <div className="transaction-merchant">
-          <span className="merchant-name">{transaction.merchantName}</span>
-          <span className="transaction-category">{transaction.category}</span>
-        </div>
-        <div className="transaction-amount">
-          <span className={`amount ${transaction.type}`}>
-            {transaction.type === "debit" ? "-" : "+"}
-            {formatCurrency(transaction.amount)}
-          </span>
-        </div>
-      </div>
-      <div
-        className="transaction-details"
-        id={`transaction-${transaction.id}-details`}
-      >
-        <div
-          className="transaction-description"
-          aria-label={`Description: ${transaction.description}`}
-        >
-          {transaction.description}
-        </div>
-        <div className="transaction-meta">
-          <span
-            className="transaction-date"
-            aria-label={`Date: ${formatDate(transaction.timestamp)}`}
+      {
+        sortedTransactions.length > 0 ? (
+          <div
+            className="transaction-list-container"
+            role="grid"
+            aria-labelledby="transaction-list-title"
+            aria-rowcount={sortedTransactions.length}
+            tabIndex={0}
           >
-            {formatDate(transaction.timestamp)}
-          </span>
-          <span
-            className={`transaction-status ${transaction.status}`}
-            aria-label={`Status: ${transaction.status}`}
-            aria-live="polite"
-          >
-            {transaction.status}
-          </span>
-          {transaction.location && (
-            <span
-              className="transaction-location"
-              aria-label={`Location: ${transaction.location}`}
-            >
-              {transaction.location}
-            </span>
-          )}
-        </div>
-      </div>
+            <Virtuoso
+              style={{ height: '600px' }}
+              data={sortedTransactions}
+              itemContent={(index, transaction) => (
+                <TransactionItem
+                  key={transaction.id}
+                  transaction={transaction}
+                  isSelected={selectedItems.has(transaction.id)}
+                  isHovered={hoveredItem === transaction.id}
+                  onClick={() => handleItemClick(transaction)}
+                  onMouseEnter={() => handleMouseEnter(transaction.id)}
+                  onMouseLeave={handleMouseLeave}
+                  rowIndex={index}
+                />
+              )}
+            />
+          </div>
+        ) : (
+          <p>No transactions found</p>
+        )
+      }
+
     </div>
   );
 };

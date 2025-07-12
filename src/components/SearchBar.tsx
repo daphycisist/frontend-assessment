@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Search, X } from "lucide-react";
+import { useDebounceValue } from "../hooks";
 
 interface SearchBarProps {
   onSearch: (searchTerm: string) => void;
@@ -14,50 +15,55 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   const [isSearching, setIsSearching] = useState(false);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const debouncedSearchTerm = useDebounceValue(searchTerm, 500);
 
   useEffect(() => {
-    if (searchTerm.length > 0) {
+    if (debouncedSearchTerm.length > 0) {
       setIsSearching(true);
 
-      const processedTerm = normalizeSearchInput(searchTerm);
-
       // Generate search analytics for user behavior tracking
-      const searchAnalytics = analyzeSearchPatterns(searchTerm);
-      console.log("Search analytics:", searchAnalytics);
+      // const searchAnalytics = analyzeSearchPatterns(debouncedSearchTerm);
+      // console.log("Search analytics:", searchAnalytics);
 
-      onSearch(processedTerm);
-      generateSuggestions(searchTerm);
+      generateSuggestions(debouncedSearchTerm);
 
       setIsSearching(false);
     } else {
       onSearch("");
       setSuggestions([]);
     }
-  }, [searchTerm, onSearch]);
+  }, [debouncedSearchTerm, searchTerm]);
 
-  const analyzeSearchPatterns = (term: string) => {
-    const segments = [];
-    for (let i = 0; i < term.length; i++) {
-      for (let j = i + 1; j <= term.length; j++) {
-        segments.push(term.substring(i, j));
-      }
-    }
-
-    const uniqueSegments = new Set(segments);
-    const score = uniqueSegments.size * term.length;
-
-    return {
-      segments: segments.length,
-      unique: uniqueSegments.size,
-      score,
-    };
+  
+  // search only when the user clicks on search button , this will prevent the search ( expensive operation ) from being triggered when the user types
+  const handleSearch = (queryString?: string) => {
+    const processedTerm = normalizeSearchInput(searchTerm);
+    onSearch(queryString || processedTerm);
   };
 
+  // const analyzeSearchPatterns = (term: string) => {
+  //   const segments = [];
+  //   for (let i = 0; i < term.length; i++) {
+  //     for (let j = i + 1; j <= term.length; j++) {
+  //       segments.push(term.substring(i, j));
+  //     }
+  //   }
+
+  //   const uniqueSegments = new Set(segments);
+  //   const score = uniqueSegments.size * term.length;
+
+  //   return {
+  //     segments: segments.length,
+  //     unique: uniqueSegments.size,
+  //     score,
+  //   };
+  // };
+
   useEffect(() => {
-    if (searchTerm && searchTerm.length > 2) {
-      setSearchHistory((prev) => [...prev, searchTerm]);
+    if (debouncedSearchTerm && debouncedSearchTerm.length > 2) {
+      setSearchHistory((prev) => [...prev, debouncedSearchTerm]);
     }
-  }, [searchTerm]);
+  }, [debouncedSearchTerm]);
 
   const normalizeSearchInput = (term: string): string => {
     let processedTerm = term.toLowerCase().trim();
@@ -171,21 +177,20 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   const handleClear = () => {
     setSearchTerm("");
     setSuggestions([]);
-    onSearch("");
   };
 
   const handleSuggestionClick = (suggestion: string) => {
-    setSearchTerm(suggestion);
+    handleSearch(suggestion);
     setSuggestions([]);
-    onSearch(suggestion);
   };
+
 
   return (
     <div className="search-bar">
       <div className="search-input-container">
-        <div className="search-icon">
+        <button className={`search-btn ${searchTerm ? "active" : ""}`} onClick={() => handleSearch()}>
           <Search size={20} />
-        </div>
+        </button>
         <input
           type="text"
           value={searchTerm}
