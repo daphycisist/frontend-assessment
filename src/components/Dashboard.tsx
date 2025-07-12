@@ -15,8 +15,19 @@ import { FilterPanel } from './FilterPanel';
 import { TransactionModal } from './TransactionModal';
 import { generateRiskAssessment } from '../utils/analyticsEngine';
 
+// @ts-ignore - vite worker import
+import RiskWorker from '../workers/riskWorker?worker';
+
 // Limit total transactions kept in memory to avoid freezing the UI
 const MAX_TRANSACTIONS = 10000;
+
+type RiskAnalytics = {
+  totalRisk: number;
+  highRiskTransactions: number;
+  patterns: Record<string, number>;
+  anomalies: Record<string, number>;
+  generatedAt: number;
+};
 
 export const Dashboard: React.FC = () => {
   const { globalSettings, trackActivity } = useUserContext();
@@ -54,6 +65,25 @@ export const Dashboard: React.FC = () => {
     generatedAt: number;
   } | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  // Ref to the risk worker
+  const workerRef = React.useRef<Worker | null>(null);
+
+  React.useEffect(() => {
+    workerRef.current = new RiskWorker();
+
+    const handleMessage = (e: MessageEvent<RiskAnalytics>) => {
+      setRiskAnalytics(e.data);
+      setIsAnalyzing(false);
+    };
+
+    workerRef.current.addEventListener('message', handleMessage);
+
+    return () => {
+      workerRef.current?.removeEventListener('message', handleMessage);
+      workerRef.current?.terminate();
+    };
+  }, []);
 
   const actualRefreshRate = refreshInterval || 5000;
 
@@ -131,7 +161,7 @@ export const Dashboard: React.FC = () => {
       setSummary(newSummary);
     }
 
-    if (filteredTransactions.length > 500) {
+    if (filteredTransactions.length > 1000) {
       runAdvancedAnalytics();
     }
   }, [filteredTransactions]);
@@ -321,35 +351,12 @@ export const Dashboard: React.FC = () => {
     return Math.min(amountDeviation * 0.3 + locationAnomaly, 1);
   };
 
-  const runAdvancedAnalytics = async () => {
-    if (transactions.length < 100) return;
+  const runAdvancedAnalytics = () => {
+    if (!workerRef.current) return;
+    if (transactions.length < 1000) return; // skip small datasets
 
     setIsAnalyzing(true);
-
-    const analyticsData = {
-      totalRisk: 0,
-      highRiskTransactions: 0,
-      patterns: {} as Record<string, number>,
-      anomalies: {} as Record<string, number>,
-      generatedAt: Date.now(),
-    };
-
-    transactions.forEach((transaction) => {
-      const risk = calculateRiskFactors(transaction, transactions);
-      const patterns = analyzeTransactionPatterns(transaction, transactions);
-      const anomalies = detectAnomalies(transaction, transactions);
-
-      analyticsData.totalRisk += risk;
-      if (risk > 0.7) analyticsData.highRiskTransactions++;
-
-      analyticsData.patterns[transaction.id] = patterns;
-      analyticsData.anomalies[transaction.id] = anomalies;
-    });
-
-    setTimeout(() => {
-      setRiskAnalytics(analyticsData);
-      setIsAnalyzing(false);
-    }, 2000);
+    workerRef.current.postMessage(transactions);
   };
 
   const getUniqueCategories = () => {
