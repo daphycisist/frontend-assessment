@@ -427,8 +427,8 @@ export const Dashboard: React.FC = () => {
               </option>
             ))}
           </select>
-          <button onClick={handleResetFilters} disabled={JSON.stringify(filters) === JSON.stringify(defaultFilters)}>
-            <RefreshCcw size={20} />
+          <button className="clear-filters-btn" onClick={handleResetFilters} disabled={JSON.stringify(filters) === JSON.stringify(defaultFilters)}>
+            Clear filters
           </button>
       </div>
 

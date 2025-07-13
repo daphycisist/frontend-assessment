@@ -548,6 +548,15 @@ body {
   display: inline-block;
 }
 
+.clear-filters-btn{
+  background-color: transparent;
+  color: #2196f3;
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
 @keyframes skeleton-loading {
   0% {
     background-position: -200% 0;
