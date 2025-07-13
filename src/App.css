@@ -15,6 +15,38 @@ body {
   overflow-x: hidden;
 }
 
+.error-boundary {
+  padding: 20px;
+  text-align: center;
+  border: 1px solid #ff4d4f;
+  background-color: #fff1f0;
+  border-radius: 8px;
+  margin: 20px;
+}
+
+.error-boundary h2 {
+  color: #ff4d4f;
+  margin-bottom: 10px;
+}
+
+.error-boundary p {
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.error-boundary button {
+  padding: 10px 20px;
+  background-color: #1890ff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.error-boundary button:hover {
+  background-color: #40a9ff;
+}
+
 .App {
   min-height: 100vh;
   width: 100vw;
@@ -95,12 +127,33 @@ body {
   font-weight: 700;
   color: #1a1a1a;
   line-height: 1.2;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .stat-label {
   font-size: 0.9rem;
   color: #666;
   margin-top: 4px;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Animation for text updates */
+.stat-card.updating .stat-value,
+.stat-card.updating .stat-label {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .stat-value,
+  .stat-label {
+    transition: none;
+  }
 }
 
 .dashboard-controls {
@@ -296,8 +349,9 @@ body {
   overflow-y: auto;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
+  gap: 8px;
   padding: 0 24px 24px;
+  color: #1a1a1a;
 }
 
 /* .transaction-list-pagination:nth-last-child {
@@ -309,12 +363,13 @@ body {
   color: #333333;
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.4rem;
+  width: fit-content;
 }
 
 .transaction-list-pagination span:hover {
-  background-color: #dddcdc;
-  border-radius: 50%;
+  background-color: #ebe8e8;
+  /* border-radius: 50%; */
 }
 
 .transaction-list-pagination span {
@@ -324,7 +379,6 @@ body {
 
 .transaction-list-pagination span.active {
   background-color: #dddcdc;
-  border-radius: 50%;
 }
 
 .transaction-item {
@@ -339,6 +393,27 @@ body {
 .transaction-item:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Selected state */
+.transaction-item.selected {
+  background: #e3f2fd;
+}
+
+/* Hovered state */
+.transaction-item.hovered {
+  border-color: #2196f3;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Transaction type */
+.transaction-item.debit {
+  border-left: 4px solid #f44336;
+}
+
+.transaction-item.credit {
+  border-left: 4px solid #4caf50;
 }
 
 .transaction-main {
@@ -558,8 +633,10 @@ button:focus {
   place-content: center;
   text-align: center;
   font-size: 1.4rem;
+  width: 6rem;
+  background-color: bisque;
   cursor: pointer;
-  margin-top: 16px;
+  margin-top: 10px;
   transition: all 0.2s ease;
 }
 
@@ -640,11 +717,11 @@ button:focus {
   }
 
   .filter-controls {
-    flex-direction: column;
+    /* flex-direction: column; */
   }
 
   .filter-controls select {
-    width: 100%;
+    /* width: 100%; */
   }
 
   .transaction-main {

@@ -194,7 +194,7 @@ export function calculateFraudScoresAsync(
   const processBatch = () => {
     const end = Math.min(index + batchSize, transactions.length);
     for (; index < end; index++) {
-      const txn = transactions[index];
+      // const txn = transactions[index];
       // Reuse logic here from calculateFraudScores
       const fraudScore = calculateFraudScores(transactions);
       result.push(...fraudScore);

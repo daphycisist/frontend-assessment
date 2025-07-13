@@ -59,3 +59,8 @@ export type RiskAnalytics = {
   anomalies: Record<string, number>;
   generatedAt: number
 }
+
+export type IntersectingProp = {
+  isIntersecting: boolean;
+  node: Element;
+}

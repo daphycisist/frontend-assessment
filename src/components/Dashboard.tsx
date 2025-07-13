@@ -1,52 +1,56 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Transaction,
   FilterOptions,
   TransactionSummary,
+  UserPreferences,
 } from "../types/transaction";
 import {
-  generateTransactionData,
-  searchTransactions,
-  // filterTransactions,
+  generateTransactionDataAsync,
+  // searchTransactions,
   calculateSummary,
   startDataRefresh,
   stopDataRefresh,
+  generateTransactionData,
 } from "../utils/dataGenerator";
-import { TransactionList } from "./TransactionList";
+// import { TransactionList } from "./TransactionList"; // Use optimized TransactionList
 import { SearchBar } from "./SearchBar";
 import { useUserContext } from "../hooks/useUserContext";
 import { DollarSign, TrendingUp, TrendingDown, Clock } from "lucide-react";
-import { formatTransactionDate, getDateRange } from "../utils/dateHelpers";
-import { generateRiskAssessment } from "../utils/analyticsEngine";
+// import { formatTransactionDate, getDateRange } from "../utils/dateHelpers";
+// import { generateRiskAssessment } from "../utils/analyticsEngine";
 import { ViewCard } from "./ViewCard";
 import { useTransactionFilters } from "../hooks/useTransactionFilters";
 import { useRiskAnalytics } from "../hooks/useRiskAnalytics";
 import { useSearchAndSummary } from "../hooks/useSearchAndSummary";
 import { TransactionView } from "./TransactionView";
 import { PageLoader } from "../ui/PageLoader";
+import { TransactionFilters } from "./TransactionFilters";
+import { TransactionList } from "./TransactionList";
+import { ErrorBoundary } from "./ErrorBoundary";
+
+// Web Worker for data generation
+// const worker = typeof window !== "undefined" ? new Worker(new URL("./worker.ts", import.meta.url)) : null;
 
 export const Dashboard: React.FC = () => {
   const { globalSettings, trackActivity } = useUserContext();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [filteredTransactions, setFilteredTransactions] = useState<
-    Transaction[]
-  >([]);
-  const [loading, setLoading] = useState(true);
-  // const [searchTerm, setSearchTerm] = useState("");
+  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<FilterOptions>({
     type: "all",
     status: "all",
     category: "",
     searchTerm: "",
   });
-  const [selectedTransaction, setSelectedTransaction] =
-    useState<Transaction | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [summary, setSummary] = useState<TransactionSummary | null>(null);
-  const [refreshInterval, setRefreshInterval] = useState<number>(5000);
-  
+  const [refreshInterval] = useState<number>(5000);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
   const defaultTimestamps = { created: Date.now(), updated: Date.now() };
-  const [userPreferences, setUserPreferences] = useState(() => ({
+  const [userPreferences, setUserPreferences] = useState<UserPreferences>({
     theme: globalSettings.theme,
     currency: globalSettings.currency,
     itemsPerPage: 20,
@@ -56,28 +60,18 @@ export const Dashboard: React.FC = () => {
     showAdvancedFilters: false,
     compactView: false,
     timestamps: defaultTimestamps,
-  }));
+  });
 
-  const { applyFilters } = useTransactionFilters(
-    userPreferences,
-    setUserPreferences,
-    setFilteredTransactions
-  );
-
-  const {
-    // searchTerm,
-    // setSearchTerm,
-    handleSearch
-  } = useSearchAndSummary(
+  const { applyFilters } = useTransactionFilters(userPreferences, setUserPreferences, setFilteredTransactions);
+  const { handleSearch } = useSearchAndSummary(
     transactions,
     filters,
     applyFilters,
     setFilteredTransactions,
     setSummary,
-    trackActivity,
+    trackActivity
   );
 
-  // Risk assessment and fraud detection analytics
   const [riskAnalytics, setRiskAnalytics] = useState<{
     totalRisk: number;
     highRiskTransactions: number;
@@ -85,181 +79,158 @@ export const Dashboard: React.FC = () => {
     anomalies: Record<string, number>;
     generatedAt: number;
   } | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-
   const { runAdvancedAnalytics } = useRiskAnalytics(transactions, setRiskAnalytics, setIsAnalyzing);
 
-  // Memoize Expensive Functions and Values
-  // const actualRefreshRate = refreshInterval || 5000;
-  const actualRefreshRate = useMemo(() => refreshInterval || 5000, [refreshInterval]);
-
-  
-  // Expose refresh controls for admin dashboard (planned feature)
-  // Store controls for potential dashboard integration
-
-  // Optimized note
-  // Guarded Dashboard Global Exposure - Isolated side-effect instead of top-level assignment.
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-    
-      if (import.meta.env.DEV) {
-        console.log("Refresh rate configured:", actualRefreshRate);
+  // Throttle function
+  const throttle = useCallback(<T extends (...args: any[]) => void>(fn: T, wait: number) => {
+    let lastCall = 0;
+    return (...args: Parameters<T>) => {
+      const now = Date.now();
+      if (now - lastCall >= wait) {
+        lastCall = now;
+        fn(...args);
       }
-      (window as any).dashboardControls = {
-        currentRate: refreshInterval,
-        updateRate: setRefreshInterval,
-        isActive: actualRefreshRate > 0,
-      };
-    }
-  }, [refreshInterval, setRefreshInterval, actualRefreshRate]);
+    };
+  }, []);
 
+  // Incremental summary update
+  const updateSummary = useCallback((chunk: Transaction[]) => {
+    setSummary(calculateSummary(chunk));
+  }, []);
 
+  // Load initial data with Web Worker
   useEffect(() => {
     const loadInitialData = async () => {
       setLoading(true);
-
-      const initialData = generateTransactionData(500);
-      setTransactions(initialData);
-      setFilteredTransactions(initialData);
-
-      const calculatedSummary = calculateSummary(initialData);
-      setSummary(calculatedSummary);
-
-      if (initialData.length > 0) {
-        console.log(
-          "Latest transaction:",
-          formatTransactionDate(initialData[0].timestamp)
+      // if (worker) {
+      //   worker.onmessage = ({ data }) => {
+      //     if (data.chunk) {
+      //       throttle((chunk: Transaction[]) => {
+      //         setTransactions((prev) => [...prev, ...chunk]);
+      //         setFilteredTransactions((prev) => [...prev, ...chunk]);
+      //         updateSummary(chunk);
+      //       }, 500)(data.chunk);
+      //     } else if (data.done) {
+      //       setLoading(false);
+      //     }
+      //   };
+      //   worker.postMessage({ total: 500, chunkSize: 500 });
+      // } else {
+        await generateTransactionDataAsync(
+          500,
+          throttle((chunk: Transaction[]) => {
+            setTransactions((prev) => [...prev, ...chunk]);
+            setFilteredTransactions((prev) => [...prev, ...chunk]);
+            updateSummary(chunk);
+          }, 500),
+          500
         );
-        console.log("Date range:", getDateRange(1));
-
-        // Run risk assessment for fraud detection compliance
-        if (initialData.length > 1000) {
-          // requestIdleCallback(() => {
-            console.log("Starting risk assessment...");
-            const metrics = generateRiskAssessment(initialData.slice(0, 1000));
-            console.log(
-              "Risk assessment completed:",
-              metrics.processingTime + "ms"
-            );
-          // });
-        }
-      }
-
+      // }
       setLoading(false);
     };
 
     loadInitialData();
-  }, []);
+    return () => {
+      setTransactions([]);
+      setFilteredTransactions([]);
+      setSummary({} as TransactionSummary);
+      // if (worker) worker.terminate();
+    };
+  }, [updateSummary, throttle]);
 
+  // Auto-refresh with capped transactions
   useEffect(() => {
+    if (!userPreferences.autoRefresh) return;
+
+    let isInteracting = false;
+
+    // Detect user interaction to pause refresh
+    const handleInteraction = throttle(() => {
+      isInteracting = true;
+      setTimeout(() => {
+        isInteracting = false;
+      }, 500); // Resume after 5s inactivity
+    }, 100);
+
+    window.addEventListener("scroll", handleInteraction);
+    window.addEventListener("click", handleInteraction);
+
     const intervalId = startDataRefresh(() => {
+      if (isInteracting) return; // Skip refresh during interaction
       setTransactions((currentTransactions) => {
-        const newData = generateTransactionData(50);
-        const updatedData = [...newData, ...currentTransactions];
+        const newData = generateTransactionData(500);
+        // const updatedData = [...currentTransactions, ...newData]; // Append and cap at 1,000
+        const updatedData = [...currentTransactions, ...newData].slice(-1000); // Append and cap at 1,000
+        updateSummary(newData);
+        applyFilters(updatedData, filters, "");
         return updatedData;
       });
-    });
+    }, refreshInterval);
 
-    // Note: Cleanup commented out for development - enable in production
-    return () => stopDataRefresh(intervalId);
-  }, []);
+    return () => {
+      stopDataRefresh(intervalId);
+      window.removeEventListener("scroll", handleInteraction);
+      window.removeEventListener("click", handleInteraction);
+    };
+  }, [refreshInterval, userPreferences.autoRefresh, updateSummary, applyFilters, filters, throttle]);
 
+  // Optimized event listeners
   useEffect(() => {
-    // console.log('T')
-    const handleResize = () => setSummary(calculateSummary(filteredTransactions));
-    const handleScroll = () => console.log("Scrolling...", new Date().toISOString());
+    const debouncedResize = throttle(() => {
+      // Only recalculate summary if filters changed
+      if (filteredTransactions.length > 0) {
+        setSummary(calculateSummary(filteredTransactions));
+      }
+    }, 500);
+
+    const debouncedScroll = throttle(() => {
+      console.log("Scrolling...", new Date().toISOString());
+    }, 100);
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === "f") {
         e.preventDefault();
-        const searchResults = searchTransactions(transactions, "search");
-        setFilteredTransactions(searchResults);
+        handleSearch("search");
       }
     };
 
-    window.addEventListener("resize", handleResize);
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("resize", debouncedResize);
+    window.addEventListener("scroll", debouncedScroll);
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener("resize", debouncedResize);
+      window.removeEventListener("scroll", debouncedScroll);
+      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [filteredTransactions, transactions]);
+  }, [filteredTransactions, handleSearch, throttle]);
 
+  // Optimized transaction click handler
+  const handleTransactionClick = useCallback((transaction: Transaction) => {
+    setSelectedTransaction(transaction);
+    requestIdleCallback(() => {
+      const relatedTransactions = transactions
+        .filter(t => t.merchantName === transaction.merchantName || t.category === transaction.category || t.userId === transaction.userId)
+        .slice(0, 50); // Limit to 50 for performance
+      trackActivity("transaction_click");
+      console.log("Related transactions:", relatedTransactions.length);
+    });
+  }, [transactions, trackActivity]);
+
+  // Apply filters when transactions or filters change
   useEffect(() => {
-    applyFilters(transactions, filters, '');
+    applyFilters(transactions, filters, "");
   }, [transactions, filters, applyFilters]);
 
-  /** 
-   * Prevent Redundant Filtering
-    Avoid running applyFilters twice from both handleFilterChange and useEffect — make sure handleFilterChange sets state only, and let useEffect react.
-
-    Avoids duplication of filtering logic.
-   */
-  const handleFilterChange = (newFilters: FilterOptions) => {
-    setFilters(newFilters);
-  };
-
-  const handleTransactionClick = (transaction: Transaction) => {
-    setSelectedTransaction(transaction);
-
-    const relatedTransactions = transactions.filter(
-      (t) =>
-        t.merchantName === transaction.merchantName ||
-        t.category === transaction.category ||
-        t.userId === transaction.userId
-    );
-
-    const analyticsData = {
-      clickedTransaction: transaction,
-      relatedCount: relatedTransactions.length,
-      timestamp: new Date(),
-      userAgent: navigator.userAgent,
-      sessionData: {
-        clickCount: Math.random() * 100,
-        timeSpent: Date.now() - performance.now(),
-        interactions: relatedTransactions.map((t) => ({
-          id: t.id,
-          type: t.type,
-        })),
-      },
-    };
-
-    setUserPreferences((prev) => ({
-      ...prev,
-      analytics: analyticsData,
-      timestamps: { ...prev.timestamps, updated: Date.now() },
-    }));
-
-    console.log("Related transactions:", relatedTransactions.length);
-  };
-
-
+  // Run analytics on filtered transactions
   useEffect(() => {
-    if (filteredTransactions.length > 0) {
-      const newSummary = calculateSummary(filteredTransactions);
-      setSummary(newSummary);
-      // setSummary(memoizedSummary);
-    }
-
     if (filteredTransactions.length > 500) {
-      requestIdleCallback(() => {
-        runAdvancedAnalytics();
-      });
+      requestIdleCallback(() => runAdvancedAnalytics());
     }
   }, [filteredTransactions, runAdvancedAnalytics]);
 
-  const getUniqueCategories = () => {
-    const categories = new Set<string>();
-    transactions.forEach((t) => categories.add(t.category));
-    return Array.from(categories);
-  };
-
   if (loading) {
-    return (
-      <PageLoader />
-    );
+    return <PageLoader />;
   }
 
   return (
@@ -267,25 +238,9 @@ export const Dashboard: React.FC = () => {
       <div className="dashboard-header">
         <h1>FinTech Dashboard</h1>
         <div className="dashboard-stats">
-
-          <ViewCard 
-            Icon={DollarSign}
-            value={summary?.totalAmount}
-            name='Total Amount'
-          />
-
-          <ViewCard 
-            Icon={TrendingUp}
-            value={summary?.totalCredits}
-            name='Total Credits'
-          />
-
-          <ViewCard 
-            Icon={TrendingDown}
-            value={summary?.totalDebits}
-            name='Total Debits'
-          />
-
+          <ViewCard Icon={DollarSign} value={summary?.totalAmount} name="Total Amount" />
+          <ViewCard Icon={TrendingUp} value={summary?.totalCredits} name="Total Credits" />
+          <ViewCard Icon={TrendingDown} value={summary?.totalDebits} name="Total Debits" />
           <div className="stat-card">
             <div className="stat-icon">
               <Clock size={24} />
@@ -294,18 +249,13 @@ export const Dashboard: React.FC = () => {
               <div className="stat-value">
                 {filteredTransactions.length.toLocaleString()}
                 {filteredTransactions.length !== transactions.length && (
-                  <span className="stat-total">
-                    {" "}
-                    of {transactions.length.toLocaleString()}
-                  </span>
+                  <span className="stat-total"> of {transactions.length.toLocaleString()}</span>
                 )}
               </div>
               <div className="stat-label">
                 Transactions
                 {isAnalyzing && <span> (Analyzing...)</span>}
-                {riskAnalytics && (
-                  <span> - Risk: {riskAnalytics.highRiskTransactions}</span>
-                )}
+                {riskAnalytics && <span> - Risk: {riskAnalytics.highRiskTransactions}</span>}
               </div>
             </div>
           </div>
@@ -314,74 +264,27 @@ export const Dashboard: React.FC = () => {
 
       <div className="dashboard-controls">
         <SearchBar onSearch={handleSearch} />
-
-        <div className="filter-controls">
-          <select
-            value={filters.type || "all"}
-            onChange={(e) =>
-              handleFilterChange({
-                ...filters,
-                type: e.target.value as "debit" | "credit" | "all",
-              })
-            }
-          >
-            <option value="all">All Types</option>
-            <option value="debit">Debit</option>
-            <option value="credit">Credit</option>
-          </select>
-
-          <select
-            value={filters.status || "all"}
-            onChange={(e) =>
-              handleFilterChange({
-                ...filters,
-                status: e.target.value as
-                  | "pending"
-                  | "completed"
-                  | "failed"
-                  | "all",
-              })
-            }
-          >
-            <option value="all">All Status</option>
-            <option value="completed">Completed</option>
-            <option value="pending">Pending</option>
-            <option value="failed">Failed</option>
-          </select>
-
-          <select
-            value={filters.category || ""}
-            onChange={(e) =>
-              handleFilterChange({ ...filters, category: e.target.value })
-            }
-          >
-            <option value="">All Categories</option>
-            {getUniqueCategories().map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-        </div>
+        <TransactionFilters filters={filters} setFilters={setFilters} transactions={transactions} />
       </div>
 
       <div className="dashboard-content">
-        <TransactionList
-          transactions={filteredTransactions}
-          totalTransactions={transactions.length}
-          onTransactionClick={handleTransactionClick}
-          userPreferences={userPreferences}
-        />
+        <ErrorBoundary>
+          <TransactionList
+            transactions={filteredTransactions}
+            totalTransactions={transactions.length}
+            onTransactionClick={handleTransactionClick}
+            userPreferences={userPreferences}
+            // fetchMoreData={fetchMoreData}
+          />
+        </ErrorBoundary>
       </div>
 
-      {
-        selectedTransaction ?
-          <TransactionView 
-            selectedTransaction={selectedTransaction}
-            setSelectedTransaction={setSelectedTransaction}
-          /> : null
-        
-      }
+      {selectedTransaction && (
+        <TransactionView
+          selectedTransaction={selectedTransaction}
+          setSelectedTransaction={setSelectedTransaction}
+        />
+      )}
     </div>
   );
 };

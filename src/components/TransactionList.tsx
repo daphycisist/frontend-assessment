@@ -1,19 +1,24 @@
-import React, { useState, useEffect, useMemo } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Transaction, UserPreferences } from "../types/transaction";
 import { TransactionItem } from "./TransactionItems";
+// import { FixedSizeList as List } from "react-window";
 
 interface TransactionListProps {
   transactions: Transaction[];
   totalTransactions?: number;
   onTransactionClick: (transaction: Transaction) => void;
-  userPreferences: UserPreferences
+  userPreferences: UserPreferences;
+  fetchMoreData?: (page: number, itemsPerPage: number) => Promise<Transaction[]>;
 }
 
 type PagesInfo = {
-  currentPage: number,
-  totalPages: number,
-  pagination: number,
-}
+  currentPage: number;
+  totalPages: number;
+  pagination: number;
+};
+
+const MemoizedTransactionItem = React.memo(TransactionItem);
 
 export const TransactionList: React.FC<TransactionListProps> = ({
   transactions,
@@ -21,195 +26,187 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   onTransactionClick,
   userPreferences,
 }) => {
-  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  // const ITEM_HEIGHT = 50; // Verify with TransactionItem height
+  const [selectedItems, setSelectedItems] = useState<Record<string, boolean>>({});
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
-  const [pages, setPages] = useState<PagesInfo>(
-    {
-      currentPage: 1,
-      totalPages: 0,
-      pagination: 0,
-    }
-  );
-
+  const [pages, setPages] = useState<PagesInfo>({
+    currentPage: 1,
+    totalPages: 0,
+    pagination: 0,
+  });
   const { currentPage, totalPages, pagination } = pages;
 
-  useEffect(() => {
-    // Pre-calculate formatted amounts for display optimization
-    const formattedTransactions = transactions.map((t) => {
-      return {
-        ...t,
-        formattedAmount: new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "USD",
-        }).format(t.amount),
-      };
-    });
+  // Throttle mouse events
+  const throttle = useCallback(<T extends (...args: any[]) => void>(fn: T, wait: number) => {
+    let lastCall = 0;
+    return (...args: Parameters<T>) => {
+      const now = Date.now();
+      if (now - lastCall >= wait) {
+        lastCall = now;
+        fn(...args);
+      }
+    };
+  }, []);
 
-    setSelectedItems(new Set());
+  // Format transactions
+  const formatTransaction = useCallback(
+    (t: Transaction) => ({
+      ...t,
+      formattedAmount: new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+      }).format(t.amount),
+    }),
+    []
+  );
 
-    if (formattedTransactions.length > 0) {
-      const maxPages = Math.round(transactions?.length / userPreferences.itemsPerPage);
-      setPages((prev) => ({ ...prev, totalPages: maxPages }));
-  
-      localStorage.setItem(
-        "lastTransactionCount",
-        formattedTransactions.length.toString()
-      );
-    }
-  }, [transactions, userPreferences.itemsPerPage]);
-
-  const handleItemClick = (transaction: Transaction) => {
-    const updatedSelected = new Set(selectedItems);
-    if (updatedSelected.has(transaction.id)) {
-      updatedSelected.delete(transaction.id);
-    } else {
-      updatedSelected.add(transaction.id);
-    }
-    setSelectedItems(updatedSelected);
-    onTransactionClick(transaction);
-  };
-
-  const handleMouseEnter = (id: string) => {
-    if (hoveredItem === id) return;
-    setHoveredItem(id);
-  };
-
-  const handleMouseLeave = () => {
-    setHoveredItem(null);
-  };
-
-  
-  const sortedTransactions = transactions.sort((a, b) => {
-    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-  });
-
-  
-  // useEffect(() => {
-    //   let itemsLength = transactions.length;
-    //   console.log(itemsLength)
-    //   let pageLength = 0;
-    
-    //   while (itemsLength >= 0) {
-      //     itemsLength -= itemsPerPage;
-      //     pageLength += 1;
-      //   }
-      //   setPages([...Array(pageLength)]);
-      // }, [transactions])
-      
+  // Memoized paginated data
   const paginatedData = useMemo(() => {
     const itemsPerPage = userPreferences.itemsPerPage;
     const start = (currentPage - 1) * itemsPerPage;
-    return sortedTransactions.slice(start, start + itemsPerPage);
-  }, [sortedTransactions, currentPage, userPreferences.itemsPerPage]);
+    const end = start + itemsPerPage;
+    return transactions.slice(start, end).map(formatTransaction);
+  }, [transactions, currentPage, userPreferences.itemsPerPage, formatTransaction]);
 
-  // useEffect(() => {
-  //   setPages((prev) => {
-  //     const nextPage = prev.currentPage === totalPages ? totalPages : prev.currentPage + 1;
-  //     const result = { ...prev, currentPage: nextPage };
-  //     if (prev.currentPage >= 4) result.pagination += 5;
-  //     return result;
-  //   });
-  // }, [currentPage, totalPages])
+  // Update displayed transactions
+  useEffect(() => {
+    const itemsPerPage = userPreferences.itemsPerPage;
+    const maxPages = Math.ceil((totalTransactions || transactions.length) / itemsPerPage);
+    setPages((prev) => ({ ...prev, totalPages: maxPages }));
+  }, [totalTransactions, userPreferences.itemsPerPage]);
 
-  const handlePage = (action: 'next' | 'prev', pageNumber = 1) => {
-    const adjusted = pageNumber <= 1 ? pageNumber : Math.abs(currentPage - pageNumber);
-    console.log({ adjusted, pageNumber })
-    if (action === 'next') {
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      setSelectedItems({});
+      setHoveredItem(null);
+    };
+  }, []);
+
+  // Total amount
+  const totalAmount = useMemo(() => {
+    return paginatedData.reduce((sum, t) => sum + t.amount, 0);
+  }, [paginatedData]);
+
+  // Event handlers
+  const handleItemClick = useCallback(
+    (transaction: Transaction) => {
+      setSelectedItems((prev) => ({
+        ...prev,
+        [transaction.id]: !prev[transaction.id],
+      }));
+      onTransactionClick(transaction);
+    },
+    [onTransactionClick]
+  );
+
+  const handleMouseEnter = useCallback(throttle((id: string) => setHoveredItem(id), 100), []);
+  const handleMouseLeave = useCallback(throttle(() => setHoveredItem(null), 100), []);
+
+  const handlePage = useCallback(
+    (action: "next" | "prev", pageNumber = 1) => {
+      const adjusted = pageNumber <= 1 ? pageNumber : Math.abs(currentPage - pageNumber);
       setPages((prev) => {
-        const nextPage = prev.currentPage === totalPages ? totalPages : prev.currentPage + adjusted;
+        const nextPage = action === "next" ? Math.min(prev.currentPage + adjusted, totalPages) : Math.max(prev.currentPage - adjusted, 1);
         const result = { ...prev, currentPage: nextPage };
-        if (nextPage >= pagination + 5) result.pagination += 5;
+        if (nextPage >= pagination + 5 && pageNumber !== totalPages) {
+          result.pagination += 5;
+        } else if (nextPage <= pagination + 1) {
+          result.pagination -= result.pagination >= 5 ? 5 : 0;
+        }
         return result;
       });
-    } else {
-      setPages((prev) => {
-        const prevPage = prev.currentPage >= 2 ? prev.currentPage - adjusted : prev.currentPage;
-        console.log(prevPage)
-        const result = { ...prev, currentPage: prevPage };
-        if (prevPage <= pagination + 1) result.pagination -= result.pagination >= 5 ? 5 : 0;
-        return result;
-      });
-    }
-  };
+    },
+    [currentPage, totalPages, pagination]
+  );
 
-  console.log({ currentPage })
-  const handlePageSelection = (selectedPage: number) => {
-    const current = currentPage
-    console.log(current)
-    // if (selectedPage === 1 || selectedPage === totalPages) return;
-    if (selectedPage > current) handlePage('next', selectedPage);
-    else if (selectedPage <= current) handlePage('prev', selectedPage);
-    return;
-  }
+  const handlePageSelection = useCallback(
+    (selectedPage: number) => {
+      if (selectedPage > currentPage) handlePage("next", selectedPage);
+      else if (selectedPage <= currentPage) handlePage("prev", selectedPage);
+    },
+    [currentPage, handlePage]
+  );
+
+  //  const Row = useCallback(
+  //   ({ index, style }: { index: number; style: React.CSSProperties }) => {
+  //     const transaction = displayedTransactions[index];
+  //     if (!transaction) return null;
+  //     return (
+  //       <div style={style} className="transaction-row">
+  //         <MemoizedTransactionItem
+  //           transaction={transaction}
+  //           isSelected={!!selectedItems[transaction.id]}
+  //           isHovered={hoveredItem === transaction.id}
+  //           onClick={() => handleItemClick(transaction)}
+  //           onMouseEnter={() => handleMouseEnter(transaction.id)}
+  //           onMouseLeave={handleMouseLeave}
+  //           rowIndex={index}
+  //         />
+  //       </div>
+  //     );
+  //   },
+  //   [paginatedData, selectedItems, hoveredItem, handleItemClick, handleMouseEnter, handleMouseLeave]
+  // );
 
   return (
-    <div
-      className="transaction-list"
-      role="region"
-      aria-label="Transaction list"
-    >
+    <div className="transaction-list" role="region" aria-label="Transaction list">
       <div className="transaction-list-header">
-        <div className="transaction-list-pagination-wrapper">  
+        <div className="transaction-list-pagination-wrapper">
           <h2 id="transaction-list-title">
-            Transactions ({transactions.length}
-            {totalTransactions && totalTransactions !== transactions.length && (
-              <span> of {totalTransactions}</span>
-            )}
-            )
+            Transactions ({totalTransactions || paginatedData.length})
           </h2>
-
           <div className="transaction-list-pagination">
-            {
-              [...Array(totalPages).keys()].slice(pagination, pagination + 5).map((page) => (
-                <span
+            {[...Array(totalPages).keys()].slice(pagination, pagination + 5).map((page) => (
+              <span
                 key={page}
-                className={`${page + 1 === currentPage ? 'active' : ''}`}
+                className={`${page + 1 === currentPage ? "active" : ""}`}
                 onClick={() => handlePageSelection(page + 1)}
-                >{page + 1}
-                </span>
-              ))
-            }
-            <span><i>of</i> {totalPages}</span>
+              >
+                {page + 1}
+              </span>
+            ))}
+            <span>
+              <i>of</i> {totalPages}
+            </span>
           </div>
         </div>
-        
         <span className="total-amount" aria-live="polite">
           Total:{" "}
-          {new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
-          }).format(transactions.reduce((sum, t) => sum + t.amount, 0))}
+          {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(totalAmount)}
         </span>
       </div>
 
       <div
-        className="transaction-list-container"
-        role="grid"
-        aria-labelledby="transaction-list-title"
-        aria-rowcount={userPreferences.itemsPerPage}
-        tabIndex={0}
-      >
-        {paginatedData.map((transaction, index) => (
-          <TransactionItem
-            key={transaction.id}
-            transaction={transaction}
-            isSelected={selectedItems.has(transaction.id)}
-            isHovered={hoveredItem === transaction.id}
-            onClick={() => handleItemClick(transaction)}
-            onMouseEnter={() => handleMouseEnter(transaction.id)}
-            onMouseLeave={handleMouseLeave}
-            rowIndex={index}
-          />
-        ))}
-      </div>
+          className="transaction-list-container"
+          role="grid"
+          aria-labelledby="transaction-list-title"
+          aria-rowcount={userPreferences.itemsPerPage}
+          tabIndex={0}
+        >
+          {paginatedData?.map((transaction, index) => (
+            <MemoizedTransactionItem
+              key={transaction.id}
+              transaction={transaction}
+              isSelected={selectedItems[transaction.id]}
+              isHovered={hoveredItem === transaction.id}
+              onClick={() => handleItemClick(transaction)}
+              onMouseEnter={() => handleMouseEnter(transaction.id)}
+              onMouseLeave={handleMouseLeave}
+              rowIndex={index}
+            />
+          ))}
+  
+          {/* <div ref={observerRef as React.LegacyRef<HTMLDivElement>}></div> */}
+        </div>
 
       <div className="page-counter">
-        <button
-        onClick={() => handlePage('prev')}
-        >{'<'}</button>
-        <button
-        onClick={() => handlePage('next')}
-        >{'>'}</button>
+        <button onClick={() => handlePage("prev")} disabled={currentPage === 1}>
+          {"<"}
+        </button>
+        <button onClick={() => handlePage("next")} disabled={currentPage === totalPages}>
+          {">"}
+        </button>
       </div>
     </div>
   );

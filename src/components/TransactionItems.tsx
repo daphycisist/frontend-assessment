@@ -31,33 +31,11 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
     return format(date, "MMM dd, yyyy HH:mm");
   };
 
-  const getItemStyle = () => {
-    const baseStyle = {
-      backgroundColor: isSelected ? "#e3f2fd" : "#ffffff",
-      borderColor: isHovered ? "#2196f3" : "#e0e0e0",
-      transform: isHovered ? "translateY(-1px)" : "translateY(0)",
-      boxShadow: isHovered
-        ? "0 4px 8px rgba(0,0,0,0.1)"
-        : "0 2px 4px rgba(0,0,0,0.05)",
-    };
-
-    if (transaction.type === "debit") {
-      return {
-        ...baseStyle,
-        borderLeft: "4px solid #f44336",
-      };
-    } else {
-      return {
-        ...baseStyle,
-        borderLeft: "4px solid #4caf50",
-      };
-    }
-  };
-
   return (
     <div
-      className="transaction-item"
-      style={getItemStyle()}
+      className={`transaction-item ${isSelected ? "selected" : ""} ${isHovered ? "hovered" : ""} ${
+        transaction.type === "debit" ? "debit" : "credit"
+      }`}
       onClick={onClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}

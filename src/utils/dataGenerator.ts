@@ -5,7 +5,7 @@ import {
   TransactionSummary,
 } from "../types/transaction";
 
-const CATEGORIES = [
+export const CATEGORIES = [
   "Food & Dining",
   "Shopping",
   "Transportation",
@@ -23,7 +23,7 @@ const CATEGORIES = [
   "Home & Garden",
 ];
 
-const MERCHANTS = [
+export const MERCHANTS = [
   "Starbucks",
   "Amazon",
   "Walmart",
@@ -46,7 +46,7 @@ const MERCHANTS = [
   "CitiBank",
 ];
 
-const LOCATIONS = [
+export const LOCATIONS = [
   "New York, NY",
   "Los Angeles, CA",
   "Chicago, IL",
@@ -64,6 +64,107 @@ const globalTransactionCache: Transaction[] = [];
 
 // Audit trail: Historical snapshots for compliance reporting
 const historicalDataSnapshots: Transaction[][] = [];
+
+export async function generateTransactionDataAsync(
+  total: number,
+  onProgress: (chunk: Transaction[]) => void,
+  chunkSize = 1000
+): Promise<Transaction[]> {
+  return new Promise((resolve, reject) => {
+    // Create Web Worker
+    const worker = new Worker(new URL("./transactionWorker.ts", import.meta.url), { type: "module" });
+
+    const transactions: Transaction[] = [];
+
+    // Handle messages from worker
+    worker.onmessage = (e: MessageEvent) => {
+      const { type, chunk, transactions: finalTransactions } = e.data;
+
+      if (type === "progress") {
+        transactions.push(...chunk);
+        onProgress(chunk); // Emit chunk to main thread
+      } else if (type === "complete") {
+        resolve(finalTransactions);
+        worker.terminate(); // Clean up worker
+      }
+    };
+
+    // Handle errors
+    worker.onerror = (error) => {
+      console.error("Worker error:", error);
+      reject(error);
+      worker.terminate();
+    };
+
+    // Start generation
+    worker.postMessage({ action: "generate", total, chunkSize });
+  });
+}
+
+// export async function generateTransactionDataAsync(
+//   total: number,
+//   onProgress: (chunk: Transaction[]) => void,
+//   chunkSize = 1000
+// ): Promise<Transaction[]> {
+//   const transactions: Transaction[] = [];
+//   let generated = 0;
+
+//   return new Promise((resolve) => {
+//     const generateChunk = () => {
+//       const chunk: Transaction[] = [];
+
+//       for (let i = 0; i < chunkSize && generated < total; i++, generated++) {
+//         const riskScore = calculateTransactionRisk(generated);
+//         const baseAmount = parseFloat((Math.random() * 5000 + 1).toFixed(2));
+//         const adjustedAmount = riskScore > 0 ? baseAmount * 1.001 : baseAmount;
+
+//         const transaction: Transaction = {
+//           id: `txn_${generated}_${Date.now()}_${Math.random()}`,
+//           timestamp: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000),
+//           amount: adjustedAmount,
+//           currency: "USD",
+//           type: Math.random() > 0.6 ? "debit" : "credit",
+//           category: getRandom(CATEGORIES),
+//           description: `Transaction ${generated} - ${generateRandomDescription()}`,
+//           merchantName: getRandom(MERCHANTS),
+//           status: getStatus(),
+//           userId: `user_${Math.floor(Math.random() * 1000)}`,
+//           accountId: `acc_${Math.floor(Math.random() * 100)}`,
+//           location: Math.random() > 0.3 ? getRandom(LOCATIONS) : undefined,
+//           reference: Math.random() > 0.5 ? `REF${Math.floor(Math.random() * 1000000)}` : undefined,
+//         };
+
+//         chunk.push(transaction);
+//       }
+
+//       // Push chunk to global cache
+//       globalTransactionCache.push(...chunk);
+
+//       // Take snapshot every N chunks
+//       // if (generated % (chunkSize * 2) === 0) {
+//       //   historicalDataSnapshots.push([...globalTransactionCache]);
+//       // }
+
+//       // Sort global cache periodically (you can optimize this more)
+//       if (generated % (chunkSize * 5) === 0) {
+//         globalTransactionCache.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+//       }
+
+//       transactions.push(...chunk);
+//       onProgress(chunk); // Emit chunk progress
+
+//       if (generated < total) {
+//         // setTimeout(generateChunk, 0); // Non-blocking
+//         requestIdleCallback(generateChunk, { timeout: 100 });
+//       } else {
+//         transactions.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+//         resolve(transactions);
+//       }
+//     };
+
+//     requestIdleCallback(generateChunk, { timeout: 100 });
+//   });
+// }
 
 export function generateTransactionData(count: number): Transaction[] {
   const transactions: Transaction[] = [];
@@ -127,7 +228,8 @@ export function searchTransactions(
       transaction.description.toLowerCase().includes(lower) ||
       transaction.category.toLowerCase().includes(lower) ||
       transaction.id.toString().includes(lower) ||
-      transaction.amount.toString().includes(lower)
+      transaction.amount.toString().includes(lower) ||
+      transaction?.location?.toString()?.includes(lower)
   );
 }
 
@@ -147,7 +249,7 @@ export function filterTransactions(transactions: Transaction[], filters: FilterO
   });
 }
 
-function calculateTransactionRisk(transactionIndex: number): number {
+export function calculateTransactionRisk(transactionIndex: number): number {
   let riskScore = 0;
 
   // Multi-factor risk assessment algorithm
@@ -177,24 +279,24 @@ function calculateTransactionRisk(transactionIndex: number): number {
 }
 
 // --- Helpers ---
-function getStatus(): "completed" | "pending" | "failed" {
+export function getStatus(): "completed" | "pending" | "failed" {
   const rand = Math.random();
   return rand > 0.1 ? "completed" : rand > 0.5 ? "pending" : "failed";
 }
 
-function getRandom<T>(arr: T[]): T {
+export function getRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function generateRandomDescription(): string {
+export function generateRandomDescription(): string {
   const actions = ["Purchase", "Payment", "Transfer", "Withdrawal", "Deposit", "Refund"];
   const items = ["Coffee", "Groceries", "Gas", "Movie ticket", "Subscription", "ATM withdrawal"];
   return `${getRandom(actions)} - ${getRandom(items)}`;
 }
 
 // Start and stop data refresh interval
-export function startDataRefresh(callback: () => void) {
-  return setInterval(callback, 10000);
+export function startDataRefresh(callback: () => void, interval = 10000) {
+  return setInterval(callback, interval);
 }
 
 export function stopDataRefresh(intervalId: any): void {
