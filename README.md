@@ -63,16 +63,25 @@ Transform this fintech transaction dashboard into a production-ready application
 
 ## 🚀 Getting Started
 
-1. `yarn install`
-2. `yarn dev`
-3. Analyze performance with dev tools
-4. Implement optimizations
-5. Submit: code + technical report
+1. **Fork this repository** to your GitHub account
+2. **Clone your fork**: `git clone [your-fork-url]`
+3. `yarn install`
+4. `yarn dev`
+5. Analyze performance with dev tools
+6. Implement optimizations
+7. Follow the submission instructions below
 
 ## 📊 Deliverables
 
 1. **Optimized codebase** with architectural improvements
 2. **Technical report** covering optimizations, architecture decisions, and UX enhancements
+
+## 📤 Submission Instructions
+
+1. **Push your changes** to your forked repository
+2. **Open a Pull Request** back to the original repository
+3. **Send your PR link** and technical report to the assessment team
+4. **Notify completion** via email with your PR link
 
 _Note: Be prepared to discuss your technical decisions and demonstrate improvements during the follow-up call._
 
@@ -175,4 +184,4 @@ _Note: Be prepared to discuss your technical decisions and demonstrate improveme
 
 ---
 
-**Questions?** precious@grey.com, tega@grey.co, temilayo@grey.co
+**Questions?** precious@grey.co, tega@grey.co, temilayo@grey.co
