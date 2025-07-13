@@ -121,7 +121,6 @@ export const Dashboard: React.FC = () => {
       const newData = await generateTransactionData(200);
       setTransactions((currentTransactions) => [...currentTransactions, ...newData]);
     });
-
     // Note: Cleanup commented out for development - enable in production
     return () => stopDataRefresh();
   }, []);
@@ -132,7 +131,6 @@ export const Dashboard: React.FC = () => {
 
 
   useEffect(() => {
-
     (async () => {
     if (filteredTransactions.length > 0) {
       const newSummary = await calculateSummary(filteredTransactions);
@@ -150,71 +148,76 @@ export const Dashboard: React.FC = () => {
     data: Transaction[],
     currentFilters: FilterOptions,
   ) => {
-    
     setIsSearching(true);
+    try {
+      let filtered = [...data];
+  
+      if (currentFilters.searchTerm && currentFilters.searchTerm.length > 0) {
+        filtered = await searchTransactions(filtered, currentFilters.searchTerm);
+      }
+  
+      if (currentFilters.type && currentFilters.type !== "all") {
+        filtered = await filterTransactions(filtered, { type: currentFilters.type });
+      }
+  
+      if (currentFilters.status && currentFilters.status !== "all") {
+        filtered = await filterTransactions(filtered, {
+          status: currentFilters.status,
+        });
+      }
+  
+      if (currentFilters.category) {
+        filtered = await filterTransactions(filtered, {
+          category: currentFilters.category,
+        });
+      }
+  
+      if (userPreferences.compactView) {
+        filtered = filtered.slice(0, userPreferences.itemsPerPage);
+      }
+  
+      // Enhanced fraud analysis for large datasets
+      if (filtered.length > 1000) {
+        const enrichedFiltered = filtered.map((transaction) => {
+          const riskFactors = calculateRiskFactors(transaction, filtered);
+          const patternScore = analyzeTransactionPatterns(transaction, filtered);
+          const anomalyDetection = detectAnomalies(transaction, filtered);
+  
+          return {
+            ...transaction,
+            riskScore: riskFactors + patternScore + anomalyDetection,
+            enrichedData: {
+              riskFactors,
+              patternScore,
+              anomalyDetection,
+              timestamp: Date.now(),
+            },
+          };
+        });
+  
+        setFilteredTransactions(enrichedFiltered);
+      } else {
+        setFilteredTransactions(filtered);
+      }
+  
+      setUserPreferences((prev) => ({
+        ...prev,
+        timestamps: { ...prev.timestamps, updated: Date.now() },
+      }));
 
-    let filtered = [...data];
-
-    if (currentFilters.searchTerm && currentFilters.searchTerm.length > 0) {
-      filtered = await searchTransactions(filtered, currentFilters.searchTerm);
+      // Add artificial delay if operations are too fast
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+    } catch (error) {
+      console.error("Error applying filters:", error);
+    } finally {
+      setIsSearching(false); // Always turn off loading
     }
 
-    if (currentFilters.type && currentFilters.type !== "all") {
-      filtered = await filterTransactions(filtered, { type: currentFilters.type });
-    }
-
-    if (currentFilters.status && currentFilters.status !== "all") {
-      filtered = await filterTransactions(filtered, {
-        status: currentFilters.status,
-      });
-    }
-
-    if (currentFilters.category) {
-      filtered = await filterTransactions(filtered, {
-        category: currentFilters.category,
-      });
-    }
-
-    if (userPreferences.compactView) {
-      filtered = filtered.slice(0, userPreferences.itemsPerPage);
-    }
-
-    // Enhanced fraud analysis for large datasets
-    if (filtered.length > 1000) {
-      const enrichedFiltered = filtered.map((transaction) => {
-        const riskFactors = calculateRiskFactors(transaction, filtered);
-        const patternScore = analyzeTransactionPatterns(transaction, filtered);
-        const anomalyDetection = detectAnomalies(transaction, filtered);
-
-        return {
-          ...transaction,
-          riskScore: riskFactors + patternScore + anomalyDetection,
-          enrichedData: {
-            riskFactors,
-            patternScore,
-            anomalyDetection,
-            timestamp: Date.now(),
-          },
-        };
-      });
-
-      setFilteredTransactions(enrichedFiltered);
-    } else {
-      setFilteredTransactions(filtered);
-    }
-
-    setUserPreferences((prev) => ({
-      ...prev,
-      timestamps: { ...prev.timestamps, updated: Date.now() },
-    }));
-
-
-    setTimeout(() => {
-      setIsSearching(false);
-    }, 500);
   }, [transactions, filters, userPreferences]);
 
   const handleSearch = async (searchTerm: string) => {
+    console.log("handleSearch", searchTerm);
     setFilters((prev) => ({ ...prev, searchTerm }));
     trackActivity(`search:${searchTerm}`);
   };
@@ -376,7 +379,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       <div className="dashboard-controls">
-        <SearchBar onSearch={handleSearch} isSearching={isSearching}  />
+        <SearchBar onSearch={handleSearch} isLoading={isSearching}  />
 
           <select
             value={filters.type || "all"}
@@ -434,6 +437,7 @@ export const Dashboard: React.FC = () => {
           transactions={filteredTransactions}
           totalTransactions={transactions.length}
           onTransactionClick={handleTransactionClick}
+          isLoading={isSearching}
         />
       </div>
 

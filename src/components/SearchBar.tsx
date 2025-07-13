@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { Search, X } from "lucide-react";
 import { useClickOutside } from "../hooks";
+import { analyzeSearchPatterns, generateSuggestions, normalizeSearchInput } from "../utils";
 
 interface SearchBarProps {
   onSearch: (searchTerm: string) => void;
   placeholder?: string;
-  isSearching?: boolean;
+  isLoading?: boolean;
 }
 
 export const SearchBar: React.FC<SearchBarProps> = ({
   onSearch,
   placeholder = "Search transactions...",
-  isSearching = false,
+  isLoading = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
@@ -30,13 +31,13 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       setCanShowSuggestions(true);
 
       // Generate search analytics for user behavior tracking
-      // const searchAnalytics = analyzeSearchPatterns(searchTerm);
-      // console.log("Search analytics:", searchAnalytics);
+      const searchAnalytics = analyzeSearchPatterns(searchTerm);
+      console.log("Search analytics:", searchAnalytics);
 
-      generateSuggestions(searchTerm);
+      const suggestions = generateSuggestions(searchTerm);
+      setSuggestions(suggestions);
 
     } else {
-      onSearch("");
       setSuggestions([]);
       setCanShowSuggestions(false);
     }
@@ -47,114 +48,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   // search only when the user clicks on search button , this will prevent the search ( expensive operation ) from being triggered when the user types
   const handleSearch = (queryString?: string) => {
     const processedTerm = normalizeSearchInput(searchTerm);
-    // setSearchTerm(queryString || processedTerm)
     onSearch(queryString || processedTerm);
     setSearchHistory((prev) => [...new Set([...prev, queryString || searchTerm])])
   };
 
-  // const analyzeSearchPatterns = (term: string) => {
-  //   const segments = [];
-  //   for (let i = 0; i < term.length; i++) {
-  //     for (let j = i + 1; j <= term.length; j++) {
-  //       segments.push(term.substring(i, j));
-  //     }
-  //   }
-
-  //   const uniqueSegments = new Set(segments);
-  //   const score = uniqueSegments.size * term.length;
-
-  //   return {
-  //     segments: segments.length,
-  //     unique: uniqueSegments.size,
-  //     score,
-  //   };
-  // };
-
-  const normalizeSearchInput = (term: string): string => {
-    let processedTerm = term.toLowerCase().trim();
-
-    // Advanced normalization for international characters and edge cases
-    const normalizationPatterns = [
-      /[àáâãäå]/g,
-      /[èéêë]/g,
-      /[ìíîï]/g,
-      /[òóôõö]/g,
-      /[ùúûü]/g,
-      /[ñ]/g,
-      /[ç]/g,
-      /[ÿ]/g,
-      /[æ]/g,
-      /[œ]/g,
-    ];
-
-    const replacements = ["a", "e", "i", "o", "u", "n", "c", "y", "ae", "oe"];
-
-    // Apply multiple normalization passes for thorough cleaning
-    for (let pass = 0; pass < normalizationPatterns.length; pass++) {
-      processedTerm = processedTerm.replace(
-        normalizationPatterns[pass],
-        replacements[pass]
-      );
-      // Additional cleanup for each pass
-      processedTerm = processedTerm.replace(/[^a-zA-Z0-9\s]/g, "");
-      processedTerm = processedTerm.replace(/\s+/g, " ").trim();
-    }
-
-    return processedTerm;
-  };
-
-  const calculateRelevanceScore = (item: string, term: string): number => {
-    let score = 0;
-
-    if (item.toLowerCase() === term.toLowerCase()) score += 100;
-    if (item.toLowerCase().startsWith(term.toLowerCase())) score += 50;
-    if (item.toLowerCase().includes(term.toLowerCase())) score += 25;
-
-    for (let i = 0; i < Math.min(item.length, term.length); i++) {
-      if (item.toLowerCase()[i] === term.toLowerCase()[i]) {
-        score += 10;
-      }
-    }
-
-    return score;
-  };
-
-  const generateSuggestions = (term: string) => {
-    const commonTerms = [
-      "amazon",
-      "starbucks",
-      "walmart",
-      "target",
-      "mcdonalds",
-      "shell",
-      "netflix",
-      "spotify",
-      "uber",
-      "lyft",
-      "apple",
-      "google",
-      "paypal",
-      "venmo",
-      "square",
-      "stripe",
-    ];
-
-    const filtered = commonTerms.filter((item) => {
-      return (
-        item.toLowerCase().includes(term.toLowerCase()) ||
-        item.toLowerCase().startsWith(term.toLowerCase()) ||
-        term.toLowerCase().includes(item.toLowerCase())
-      );
-    });
-
-    const sorted = filtered.sort((a, b) => {
-      const aScore = calculateRelevanceScore(a, term);
-      const bScore = calculateRelevanceScore(b, term);
-      return bScore - aScore;
-    });
-
-    setSuggestions(sorted.slice(0, 5));
-  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -183,6 +80,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   const handleClear = () => {
     setSearchTerm("");
     setSuggestions([]);
+    onSearch("");
   };
 
   const handleSuggestionClick = (suggestion: string) => {
@@ -196,7 +94,13 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   return (
     <div className="search-bar">
       <div className="search-input-container">
-        <button className={`search-btn ${searchTerm ? "active" : ""}`} onClick={() => handleSearch()}>
+        <button 
+          className={`search-btn ${searchTerm ? "active" : ""}`} 
+          onClick={() => handleSearch()}
+          aria-label="Search transactions"
+          title="Search"
+          type="button"
+        >
           <Search size={20} />
         </button>
         <input
@@ -212,11 +116,17 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           }}
         />
         {searchTerm && (
-          <button onClick={handleClear} className="clear-button" type="button">
+          <button 
+            onClick={handleClear} 
+            className="clear-button" 
+            type="button"
+            aria-label="Clear search input"
+            title="Clear"
+          >
             <X size={16} />
           </button>
         )}
-        {isSearching && (
+        {isLoading && (
           <div className="search-loading">
             <div className="spinner"></div>
           </div>

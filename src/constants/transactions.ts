@@ -1,0 +1,18 @@
+export const commonTerms = [
+    "amazon",
+    "starbucks",
+    "walmart",
+    "target",
+    "mcdonalds",
+    "shell",
+    "netflix",
+    "spotify",
+    "uber",
+    "lyft",
+    "apple",
+    "google",
+    "paypal",
+    "venmo",
+    "square",
+    "stripe",
+  ];

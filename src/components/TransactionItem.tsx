@@ -43,16 +43,19 @@ export const TransactionItem: React.FC<{
         borderBottom: isHovered ? "1px solid #2196f3" : "1px solid #e0e0e0",
       };
 
-      if (transaction.type === "debit") {
-        return {
-          ...baseStyle,
-          borderLeft: "4px solid #f44336",
-        };
-      } else {
-        return {
-          ...baseStyle,
-          borderLeft: "4px solid #4caf50",
-        };
+      switch (transaction.type) {
+        case 'credit':
+          return {
+            ...baseStyle,
+            borderLeft: "4px solid #4caf50",
+          };
+        case 'debit':
+          return {
+            ...baseStyle,
+            borderLeft: "4px solid #f44336",
+          }
+        default:
+          break;
       }
     };
   
@@ -98,13 +101,6 @@ export const TransactionItem: React.FC<{
             >
               {formatDate(transaction.timestamp)}
             </span>
-            <span
-              className={`transaction-status ${transaction.status}`}
-              aria-label={`Status: ${transaction.status}`}
-              aria-live="polite"
-            >
-              {transaction.status}
-            </span>
             {transaction.location && (
               <span
                 className="transaction-location"
@@ -113,6 +109,13 @@ export const TransactionItem: React.FC<{
                 {transaction.location}
               </span>
             )}
+            <span
+              className={`transaction-status ${transaction.status}`}
+              aria-label={`Status: ${transaction.status}`}
+              aria-live="polite"
+            >
+              {transaction.status}
+            </span>
           </div>
         </div>
       </div>

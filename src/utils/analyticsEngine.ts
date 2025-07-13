@@ -244,3 +244,37 @@ export const detectAnomalies = (
 
   return Math.min(amountDeviation * 0.3 + locationAnomaly, 1);
 };
+
+export const calculateRelevanceScore = (item: string, term: string): number => {
+    let score = 0;
+
+    if (item.toLowerCase() === term.toLowerCase()) score += 100;
+    if (item.toLowerCase().startsWith(term.toLowerCase())) score += 50;
+    if (item.toLowerCase().includes(term.toLowerCase())) score += 25;
+
+    for (let i = 0; i < Math.min(item.length, term.length); i++) {
+      if (item.toLowerCase()[i] === term.toLowerCase()[i]) {
+        score += 10;
+      }
+    }
+
+    return score;
+  };
+
+    export const analyzeSearchPatterns = (term: string) => {
+      const segments = [];
+      for (let i = 0; i < term.length; i++) {
+        for (let j = i + 1; j <= term.length; j++) {
+          segments.push(term.substring(i, j));
+        }
+      }
+  
+      const uniqueSegments = new Set(segments);
+      const score = uniqueSegments.size * term.length;
+  
+      return {
+        segments: segments.length,
+        unique: uniqueSegments.size,
+        score,
+      };
+    };

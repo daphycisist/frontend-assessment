@@ -490,6 +490,73 @@ body {
   background-color: #f5f5f5;
 }
 
+/* Skeleton Loader Styles */
+.skeleton-item {
+  pointer-events: none;
+  user-select: none;
+}
+
+.skeleton-line {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 4px;
+  height: 16px;
+  margin: 4px 0;
+}
+
+.skeleton-merchant-name {
+  width: 60%;
+  height: 18px;
+  margin-bottom: 6px;
+}
+
+.skeleton-category {
+  width: 40%;
+  height: 14px;
+}
+
+.skeleton-amount {
+  width: 80px;
+  height: 20px;
+  margin-left: auto;
+}
+
+.skeleton-description {
+  width: 85%;
+  height: 16px;
+  margin: 8px 0;
+}
+
+.skeleton-date {
+  width: 120px;
+  height: 14px;
+  display: inline-block;
+  margin-right: 12px;
+}
+
+.skeleton-status {
+  width: 80px;
+  height: 14px;
+  display: inline-block;
+  margin-right: 12px;
+}
+
+.skeleton-location {
+  width: 100px;
+  height: 14px;
+  display: inline-block;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .dashboard {
