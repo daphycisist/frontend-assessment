@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { createContext, useState } from "react";
 
 interface UserContextType {
   globalSettings: {
@@ -23,7 +24,7 @@ interface UserContextType {
   trackActivity: (activity: string) => void;
 }
 
-const UserContext = createContext<UserContextType | undefined>(undefined);
+export const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -36,6 +37,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     featureFlags: { newDashboard: true, advancedFilters: false },
     userRole: "user",
     permissions: ["read", "write"],
+    activity: '',
     lastActivity: new Date(),
   });
 
@@ -62,6 +64,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   const trackActivity = (activity: string) => {
     setGlobalSettings((prev) => ({
       ...prev,
+      activity,
       lastActivity: new Date(),
     }));
   };
@@ -77,10 +80,3 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 };
 
-export const useUserContext = () => {
-  const context = useContext(UserContext);
-  if (!context) {
-    throw new Error("useUserContext must be used within a UserProvider");
-  }
-  return context;
-};

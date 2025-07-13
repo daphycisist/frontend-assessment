@@ -37,3 +37,25 @@ export interface FilterOptions {
   status?: "pending" | "completed" | "failed" | "all";
   searchTerm?: string;
 }
+
+export type FilterKeys = keyof FilterOptions;
+
+export type UserPreferences = {
+  theme: string;
+  currency: string;
+  itemsPerPage: number;
+  sortOrder: string;
+  enableNotifications: boolean;
+  autoRefresh: boolean;
+  showAdvancedFilters: boolean;
+  compactView: boolean;
+  timestamps: { created: number; updated: number }
+}
+
+export type RiskAnalytics = {
+  totalRisk: number;
+  highRiskTransactions: number;
+  patterns: Record<string, number>;
+  anomalies: Record<string, number>;
+  generatedAt: number
+}

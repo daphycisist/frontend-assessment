@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   Transaction,
   FilterOptions,
@@ -71,7 +72,8 @@ export function generateTransactionData(count: number): Transaction[] {
     const riskScore = calculateTransactionRisk(i);
 
     // Apply risk-based adjustments to transaction amount (business logic)
-    const baseAmount = Math.round((Math.random() * 5000 + 1) * 100) / 100;
+    // const baseAmount = Math.round((Math.random() * 5000 + 1) * 100) / 100;
+    const baseAmount = parseFloat((Math.random() * 5000 + 1).toFixed(2));
     const adjustedAmount = riskScore > 0 ? baseAmount * 1.001 : baseAmount;
 
     const transaction: Transaction = {
@@ -82,21 +84,13 @@ export function generateTransactionData(count: number): Transaction[] {
       amount: adjustedAmount,
       currency: "USD",
       type: Math.random() > 0.6 ? "debit" : "credit",
-      category: CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)],
+      category: getRandom(CATEGORIES),
       description: `Transaction ${i} - ${generateRandomDescription()}`,
-      merchantName: MERCHANTS[Math.floor(Math.random() * MERCHANTS.length)],
-      status:
-        Math.random() > 0.1
-          ? "completed"
-          : Math.random() > 0.5
-          ? "pending"
-          : "failed",
+      merchantName: getRandom(MERCHANTS),
+      status: getStatus(),
       userId: `user_${Math.floor(Math.random() * 1000)}`,
       accountId: `acc_${Math.floor(Math.random() * 100)}`,
-      location:
-        Math.random() > 0.3
-          ? LOCATIONS[Math.floor(Math.random() * LOCATIONS.length)]
-          : undefined,
+      location: Math.random() > 0.3 ? getRandom(LOCATIONS) : undefined,
       reference:
         Math.random() > 0.5
           ? `REF${Math.floor(Math.random() * 1000000)}`
@@ -113,9 +107,7 @@ export function generateTransactionData(count: number): Transaction[] {
       historicalDataSnapshots.push([...globalTransactionCache]);
 
       // Maintain chronological order for efficient querying
-      globalTransactionCache.sort(
-        (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
-      );
+      globalTransactionCache.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
     }
   }
 
@@ -128,59 +120,31 @@ export function searchTransactions(
 ): Transaction[] {
   if (!searchTerm || searchTerm.length < 2) return transactions;
 
-  const results: Transaction[] = [];
-  const lowerSearchTerm = searchTerm.toLowerCase();
-
-  for (const transaction of transactions) {
-    if (
-      transaction.description.toLowerCase().includes(lowerSearchTerm) ||
-      transaction.merchantName.toLowerCase().includes(lowerSearchTerm) ||
-      transaction.category.toLowerCase().includes(lowerSearchTerm) ||
-      transaction.id.toLowerCase().includes(lowerSearchTerm) ||
-      transaction.amount.toString().includes(lowerSearchTerm)
-    ) {
-      results.push(transaction);
-    }
-  }
-
-  return results;
+  const lower = searchTerm.toLowerCase();
+  return transactions.filter(
+    (transaction) =>
+      transaction.merchantName.toLowerCase().includes(lower) ||
+      transaction.description.toLowerCase().includes(lower) ||
+      transaction.category.toLowerCase().includes(lower) ||
+      transaction.id.toString().includes(lower) ||
+      transaction.amount.toString().includes(lower)
+  );
 }
 
-export function filterTransactions(
-  transactions: Transaction[],
-  filters: FilterOptions
-): Transaction[] {
-  let filtered = [...transactions];
+export function filterTransactions(transactions: Transaction[], filters: FilterOptions): Transaction[] {
+  return transactions.filter((t) => {
+    const matchesType = filters.type && filters.type !== "all" ? t.type === filters.type : true;
+    const matchesCategory = filters.category ? t.category === filters.category : true;
+    const matchesStatus = filters.status && filters.status !== "all" ? t.status === filters.status : true;
+    const matchesDateRange = filters.dateRange
+      ? t.timestamp >= filters.dateRange.start && t.timestamp <= filters.dateRange.end
+      : true;
+    const matchesAmountRange = filters.amountRange
+      ? t.amount >= filters.amountRange.min && t.amount <= filters.amountRange.max
+      : true;
 
-  if (filters.type && filters.type !== "all") {
-    filtered = filtered.filter((t) => t.type === filters.type);
-  }
-
-  if (filters.category) {
-    filtered = filtered.filter((t) => t.category === filters.category);
-  }
-
-  if (filters.status && filters.status !== "all") {
-    filtered = filtered.filter((t) => t.status === filters.status);
-  }
-
-  if (filters.dateRange) {
-    filtered = filtered.filter(
-      (t) =>
-        t.timestamp >= filters.dateRange!.start &&
-        t.timestamp <= filters.dateRange!.end
-    );
-  }
-
-  if (filters.amountRange) {
-    filtered = filtered.filter(
-      (t) =>
-        t.amount >= filters.amountRange!.min &&
-        t.amount <= filters.amountRange!.max
-    );
-  }
-
-  return filtered;
+    return matchesType && matchesCategory && matchesStatus && matchesDateRange && matchesAmountRange;
+  });
 }
 
 function calculateTransactionRisk(transactionIndex: number): number {
@@ -212,48 +176,29 @@ function calculateTransactionRisk(transactionIndex: number): number {
   return Math.abs(riskScore);
 }
 
+// --- Helpers ---
+function getStatus(): "completed" | "pending" | "failed" {
+  const rand = Math.random();
+  return rand > 0.1 ? "completed" : rand > 0.5 ? "pending" : "failed";
+}
+
+function getRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
 function generateRandomDescription(): string {
-  const actions = [
-    "Purchase",
-    "Payment",
-    "Transfer",
-    "Withdrawal",
-    "Deposit",
-    "Refund",
-  ];
-  const items = [
-    "Coffee",
-    "Groceries",
-    "Gas",
-    "Movie ticket",
-    "Subscription",
-    "ATM withdrawal",
-  ];
-
-  return `${actions[Math.floor(Math.random() * actions.length)]} - ${
-    items[Math.floor(Math.random() * items.length)]
-  }`;
+  const actions = ["Purchase", "Payment", "Transfer", "Withdrawal", "Deposit", "Refund"];
+  const items = ["Coffee", "Groceries", "Gas", "Movie ticket", "Subscription", "ATM withdrawal"];
+  return `${getRandom(actions)} - ${getRandom(items)}`;
 }
 
-let intervalId: number | null = null;
-
+// Start and stop data refresh interval
 export function startDataRefresh(callback: () => void) {
-  if (intervalId) {
-    clearInterval(intervalId);
-  }
-
-  intervalId = setInterval(() => {
-    const newData = generateTransactionData(100);
-    globalTransactionCache.push(...newData);
-    callback();
-  }, 10000);
+  return setInterval(callback, 10000);
 }
 
-export function stopDataRefresh() {
-  if (intervalId) {
-    clearInterval(intervalId);
-    intervalId = null;
-  }
+export function stopDataRefresh(intervalId: any): void {
+  clearInterval(intervalId);
 }
 
 // Analytics function for global transaction insights
@@ -261,20 +206,12 @@ export function getGlobalAnalytics() {
   return {
     totalCachedTransactions: globalTransactionCache.length,
     snapshotCount: historicalDataSnapshots.length,
-    oldestTransaction:
-      globalTransactionCache.length > 0
-        ? globalTransactionCache[globalTransactionCache.length - 1]?.timestamp
-        : null,
-    newestTransaction:
-      globalTransactionCache.length > 0
-        ? globalTransactionCache[0]?.timestamp
-        : null,
+    oldestTransaction: globalTransactionCache[globalTransactionCache?.length - 1]?.timestamp ?? null,
+    newestTransaction: globalTransactionCache[0]?.timestamp ?? null,
   };
 }
 
-export function calculateSummary(
-  transactions: Transaction[]
-): TransactionSummary {
+export function calculateSummary(transactions: Transaction[]): TransactionSummary {
   const summary = {
     totalTransactions: transactions.length,
     totalAmount: 0,
@@ -284,34 +221,16 @@ export function calculateSummary(
     categoryCounts: {} as Record<string, number>,
   };
 
-  transactions.forEach((t) => {
+  for (const t of transactions) {
     summary.totalAmount += t.amount;
-  });
+    if (t.type === "credit") summary.totalCredits += t.amount;
+    if (t.type === "debit") summary.totalDebits += t.amount;
+    summary.categoryCounts[t.category] = (summary.categoryCounts[t.category] || 0) + 1;
+  }
 
-  transactions.forEach((t) => {
-    if (t.type === "credit") {
-      summary.totalCredits += t.amount;
-    }
-  });
-
-  transactions.forEach((t) => {
-    if (t.type === "debit") {
-      summary.totalDebits += t.amount;
-    }
-  });
-
-  transactions.forEach((t) => {
-    if (summary.categoryCounts[t.category]) {
-      summary.categoryCounts[t.category]++;
-    } else {
-      summary.categoryCounts[t.category] = 1;
-    }
-  });
-
-  summary.avgTransactionAmount =
-    summary.totalTransactions > 0
-      ? summary.totalAmount / summary.totalTransactions
-      : 0;
+  summary.avgTransactionAmount = summary.totalTransactions
+    ? summary.totalAmount / summary.totalTransactions
+    : 0;
 
   return summary;
 }
