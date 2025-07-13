@@ -1,4 +1,4 @@
-import { commonTerms } from "../constants";
+import { COMMONTERMS } from "../constants";
 import { calculateRelevanceScore } from "./analyticsEngine";
 
 export const normalizeSearchInput = (term: string): string => {
@@ -35,7 +35,7 @@ export const normalizeSearchInput = (term: string): string => {
   };
 
     export const generateSuggestions = (term: string) => {
-      const filtered = commonTerms.filter((item: string) => {
+      const filtered = COMMONTERMS.filter((item: string) => {
         return (
           item.toLowerCase().includes(term.toLowerCase()) ||
           item.toLowerCase().startsWith(term.toLowerCase()) ||
