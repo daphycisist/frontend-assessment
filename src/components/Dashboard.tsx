@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Transaction,
   FilterOptions,
@@ -15,7 +15,6 @@ import {
   stopDataRefresh,
   // generateTransactionData,
 } from "../utils/dataGenerator";
-// import { TransactionList } from "./TransactionList"; // Use optimized TransactionList
 import { SearchBar } from "./SearchBar";
 import { useUserContext } from "../hooks/useUserContext";
 import { DollarSign, TrendingUp, TrendingDown, Clock } from "lucide-react";
@@ -47,6 +46,9 @@ export const Dashboard: React.FC = () => {
   const [summary, setSummary] = useState<TransactionSummary | null>(null);
   const [refreshInterval] = useState<number>(5000);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const searchSectionRef = useRef<HTMLElement>(null);
+  const resultsSectionRef = useRef<HTMLElement>(null);
+  const filtersSectionRef = useRef<HTMLElement>(null);
 
   const defaultTimestamps = { created: Date.now(), updated: Date.now() };
   const [userPreferences, setUserPreferences] = useState<UserPreferences>({
@@ -68,7 +70,8 @@ export const Dashboard: React.FC = () => {
     applyFilters,
     setFilteredTransactions,
     setSummary,
-    trackActivity
+    trackActivity,
+    searchSectionRef,
   );
 
   const [riskAnalytics, setRiskAnalytics] = useState<{
@@ -105,9 +108,8 @@ export const Dashboard: React.FC = () => {
       setLoading(true);
 
       await generateTransactionDataAsync(
-      1_000,
+      10_000,
       (chunk: Transaction[]) => {
-          console.log('hel')
           if (initialData?.length < 1000) initialData.push(...chunk);
           setTransactions((prev) => [...prev, ...chunk]);
           setFilteredTransactions((prev) => [...prev, ...chunk]);
@@ -245,65 +247,108 @@ export const Dashboard: React.FC = () => {
     return <PageLoader />;
   }
 
+  const handleCloseTransactionView = () => {
+    setSelectedTransaction(null);
+    resultsSectionRef.current?.focus();
+  };
+
   return (
-    <div className="dashboard">
-      
-      <DashboardNav />
-      
-      <section className="dashboard-wrapper">
-        <div className="dashboard-header">
-          <div className="dashboard-stats">
-            <ViewCard Icon={DollarSign} value={summary?.totalAmount} name="Total Amount" />
-            <ViewCard Icon={TrendingUp} value={summary?.totalCredits} name="Total Credits" />
-            <ViewCard Icon={TrendingDown} value={summary?.totalDebits} name="Total Debits" />
-            <div className="stat-card">
-              <div className="stat-icon">
-                <Clock size={24} />
-              </div>
-              <div className="stat-content">
-                <div className="stat-value">
-                  {filteredTransactions?.length.toLocaleString()}
-                  {filteredTransactions.length !== transactions.length && (
-                    <span className="stat-total"> of {transactions.length.toLocaleString()}</span>
-                  )}
-                </div>
-                <div className="stat-label">
-                  Transactions
-                  {isAnalyzing && <span> (Analyzing...)</span>}
-                  {riskAnalytics && <span> - Risk: {riskAnalytics.highRiskTransactions}</span>}
+    <>
+      {
+        loading && !filteredTransactions?.length 
+        ? <PageLoader />
+        : (
+        <main className="dashboard"  aria-label="Transaction Dashboard">
+          
+          <DashboardNav />
+          
+          <section className="dashboard-wrapper">
+            <div className="dashboard-header">
+              <div className="dashboard-stats" role="region" aria-label="Transaction statistics">
+                <ViewCard 
+                  Icon={DollarSign} 
+                  value={summary?.totalAmount} 
+                  name="Total Amount"
+                  ariaLabel={`Total amount: ${summary?.totalAmount || 0}`}
+                />
+                <ViewCard 
+                  Icon={TrendingUp} 
+                  value={summary?.totalCredits} 
+                  name="Total Credits" 
+                  ariaLabel={`Total credits: ${summary?.totalCredits || 0}`}
+                />
+                <ViewCard 
+                  Icon={TrendingDown} 
+                  value={summary?.totalDebits} 
+                  name="Total Debits"
+                  ariaLabel={`Total debits: ${summary?.totalDebits || 0}`}
+                />
+                <div className="stat-card" role="region" aria-label="Transaction count">
+                  <div className="stat-icon">
+                    <Clock size={24} aria-hidden="true" />
+                  </div>
+                  <div className="stat-content">
+                    <div className="stat-value">
+                      {filteredTransactions?.length.toLocaleString()}
+                      {filteredTransactions.length !== transactions.length && (
+                        <span className="stat-total"> of {transactions.length.toLocaleString()}</span>
+                      )}
+                    </div>
+                    <div className="stat-label" id="transaction-count-label">
+                      Transactions
+                      {isAnalyzing && <span> (Analyzing...)</span>}
+                      {riskAnalytics && <span> - Risk: {riskAnalytics.highRiskTransactions}</span>}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        <div className="dashboard-controls">
-          <ErrorBoundary>
-            <SearchBar onSearch={handleSearch} />
-          </ErrorBoundary>
+            <section 
+            ref={searchSectionRef}
+            tabIndex={-1}
+            aria-label="Search and filter controls"
+            className="dashboard-controls">
+              <ErrorBoundary>
+                <SearchBar onSearch={handleSearch} />
+              </ErrorBoundary>
 
-          <TransactionFilters filters={filters} setFilters={setFilters} transactions={transactions} />
-        </div>
+              <nav
+              ref={filtersSectionRef}
+              tabIndex={-1}
+              aria-label="Transaction filters"
+              >
+                <TransactionFilters filters={filters} setFilters={setFilters} transactions={transactions} />
+              </nav>
+            </section>
 
-        <div className="dashboard-content">
-          <ErrorBoundary>
-            <TransactionList
-              transactions={filteredTransactions}
-              totalTransactions={transactions.length}
-              onTransactionClick={handleTransactionClick}
-              userPreferences={userPreferences}
-              // fetchMoreData={fetchMoreData}
-            />
-          </ErrorBoundary>
-        </div>
+            <section 
+            ref={resultsSectionRef}
+            tabIndex={-1}
+            aria-label="Transaction results"
+            aria-live="polite"
+            className="dashboard-content">
+              <ErrorBoundary>
+                <TransactionList
+                  transactions={filteredTransactions}
+                  totalTransactions={transactions.length}
+                  onTransactionClick={handleTransactionClick}
+                  userPreferences={userPreferences}
+                  aria-describedby="results-count"
+                />
+              </ErrorBoundary>
+            </section>
 
-        {selectedTransaction && (
-          <TransactionView
-            selectedTransaction={selectedTransaction}
-            setSelectedTransaction={setSelectedTransaction}
-          />
-        )}
-      </section>
-    </div>
+            {selectedTransaction && (
+              <TransactionView
+                selectedTransaction={selectedTransaction}
+                handleCloseTransactionView={handleCloseTransactionView}
+              />
+            )}
+          </section>
+        </main>
+        )
+      }
+    </>
   );
 };

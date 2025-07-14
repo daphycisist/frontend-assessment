@@ -478,7 +478,7 @@ body {
 
 /* Selected state */
 .transaction-item.selected {
-  background: #e3f2fd;
+  /* background: #e3f2fd; */
 }
 
 /* Hovered state */

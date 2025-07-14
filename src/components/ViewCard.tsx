@@ -5,11 +5,12 @@ type ViewCardProps = {
   Icon: LucideIcon;
   value?: number;
   name: string;
+  ariaLabel: string;
 }
 
-export const ViewCard: React.FC<ViewCardProps> = ({ Icon, value, name }: ViewCardProps) => {
+export const ViewCard: React.FC<ViewCardProps> = ({ Icon, value, name, ariaLabel }: ViewCardProps) => {
   return (
-    <article className="stat-card">
+    <article className="stat-card" aria-label={ariaLabel}>
       <div className="stat-icon">
         <Icon size={24} />
       </div>

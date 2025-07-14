@@ -12,6 +12,7 @@ export const useSearchAndSummary = (
   setFilteredTransactions: (tx: Transaction[]) => void,
   setSummary: (summary: TransactionSummary) => void,
   trackActivity: (val: string) => void,
+  searchSectionRef: React.RefObject<HTMLElement>,
 ) => {
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -61,7 +62,8 @@ export const useSearchAndSummary = (
   };
   
   const handleSearch = useCallback((term: string) => {
-     const processedTerm = normalizeSearchInput(term);
+    searchSectionRef.current?.focus();
+    const processedTerm = normalizeSearchInput(term);
     setSearchTerm(processedTerm);
     trackActivity(`search:${processedTerm}`);
     const searchResults = searchTransactions(transactions, processedTerm);
@@ -69,7 +71,7 @@ export const useSearchAndSummary = (
     const filtered = filterTransactions(searchResults, filters);
     setFilteredTransactions(filtered);
     setSummary(calculateSummary(transactions));
-  }, [filters, transactions, trackActivity, setFilteredTransactions, setSummary]);
+  }, [filters, transactions, trackActivity, searchSectionRef, setFilteredTransactions, setSummary]);
 
   return {
     searchTerm,
