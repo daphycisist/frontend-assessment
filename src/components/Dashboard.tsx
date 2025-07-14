@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 
 import {
   Transaction,
@@ -6,22 +6,24 @@ import {
   TransactionSummary,
 } from "../types/transaction";
 import {
-  generateTransactionData,
-  searchTransactions,
-  filterTransactions,
   calculateSummary,
   startDataRefresh,
   stopDataRefresh,
 } from "../utils/dataGenerator";
+import {
+  workerManager,
+  fallbackApplyFilters,
+  fallbackGenerateTransactionData
+} from "../utils/workerManager";
 import { TransactionList } from "./TransactionList";
 import { SearchBar } from "./SearchBar";
 import { useUserContext } from "../contexts/UserContext";
 import { DollarSign, TrendingUp, TrendingDown, Clock } from "lucide-react";
 import { 
-  analyzeTransactionPatterns, 
-  calculateRiskFactors, 
-  detectAnomalies, 
-  generateRiskAssessment 
+  generateRiskAssessment,
+  analyzeTransactionPatterns,
+  calculateRiskFactors,
+  detectAnomalies
 } from "../utils/analyticsEngine";
 import { formatNumber } from "../utils/dateHelpers";
 
@@ -34,6 +36,7 @@ const defaultFilters: FilterOptions = {
 };
 
 export const Dashboard: React.FC = () => {
+  const inputRef = useRef<HTMLSelectElement>(null);
   const { globalSettings, trackActivity } = useUserContext();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filteredTransactions, setFilteredTransactions] = useState<
@@ -67,6 +70,11 @@ export const Dashboard: React.FC = () => {
     generatedAt: number;
   } | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState<{
+    progress: number;
+    generated: number;
+    total: number;
+  } | null>(null);
 
   const actualRefreshRate = refreshInterval || 5000;
 
@@ -91,25 +99,52 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     const loadInitialData = async () => {
       setLoading(true);
+      setGenerationProgress({ progress: 0, generated: 0, total: 10000 });
 
-      const initialData = await generateTransactionData(10000);
-      setTransactions(initialData);
-      setFilteredTransactions(initialData);
+      try {
+        // Set up progress callback for data generation
+        workerManager.onProgressUpdate = (progress, generated, total) => {
+          setGenerationProgress({ progress, generated, total });
+        };
 
-      const calculatedSummary = await calculateSummary(initialData);
-      setSummary(calculatedSummary);
+        let initialData: Transaction[];
+        let processingTime: number;
 
-      // Run risk assessment for fraud detection compliance
-      if (initialData.length > 1000) {
-        console.log("Starting risk assessment...");
-        const metrics = await generateRiskAssessment(initialData.slice(0, 1000));
-        console.log(
-          "Risk assessment completed:",
-          metrics.processingTime + "ms"
-        );
+        if (workerManager.isWorkerSupported) {
+          console.log('Using web worker for data generation...');
+          const result = await workerManager.generateTransactionData(10000);
+          initialData = result.transactions;
+          processingTime = result.processingTime;
+          console.log(`Data generation completed in ${processingTime.toFixed(2)}ms using web worker`);
+        } else {
+          console.log('Web workers not supported, using fallback...');
+          const result = await fallbackGenerateTransactionData(10000);
+          initialData = result.transactions;
+          processingTime = result.processingTime;
+          console.log(`Data generation completed in ${processingTime.toFixed(2)}ms using main thread`);
+        }
+
+        setTransactions(initialData);
+        setFilteredTransactions(initialData);
+
+        const calculatedSummary = await calculateSummary(initialData);
+        setSummary(calculatedSummary);
+
+        // Run risk assessment for fraud detection compliance
+        if (initialData.length > 1000) {
+          console.log("Starting risk assessment...");
+          const metrics = await generateRiskAssessment(initialData.slice(0, 1000));
+          console.log(
+            "Risk assessment completed:",
+            metrics.processingTime + "ms"
+          );
+        }
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+      } finally {
+        setLoading(false);
+        setGenerationProgress(null);
       }
-
-      setLoading(false);
     };
 
     loadInitialData();
@@ -117,8 +152,21 @@ export const Dashboard: React.FC = () => {
 
   useEffect(() => {
     startDataRefresh(async () => {
-      const newData = await generateTransactionData(200);
-      setTransactions((currentTransactions) => [...currentTransactions, ...newData]);
+      try {
+        let newData: Transaction[];
+        
+        if (workerManager.isWorkerSupported) {
+          const result = await workerManager.generateTransactionData(200);
+          newData = result.transactions;
+        } else {
+          const result = await fallbackGenerateTransactionData(200);
+          newData = result.transactions;
+        }
+        
+        setTransactions((currentTransactions) => [...currentTransactions, ...newData]);
+      } catch (error) {
+        console.error('Error generating refresh data:', error);
+      }
     });
     // Note: Cleanup commented out for development - enable in production
     return () => stopDataRefresh();
@@ -143,72 +191,50 @@ export const Dashboard: React.FC = () => {
 
   }, [filteredTransactions]);
 
+  useEffect(() => {
+    if(inputRef.current){
+     console.log(inputRef.current.value);
+    }
+    
+  }, [inputRef]);
+
   const applyFilters = useCallback(async (
     data: Transaction[],
     currentFilters: FilterOptions,
   ) => {
     setIsSearching(true);
     try {
-      let filtered = [...data];
-  
-      if (currentFilters.searchTerm && currentFilters.searchTerm.length > 0) {
-        filtered = await searchTransactions(filtered, currentFilters.searchTerm);
-      }
-  
-      if (currentFilters.type && currentFilters.type !== "all") {
-        filtered = await filterTransactions(filtered, { type: currentFilters.type });
-      }
-  
-      if (currentFilters.status && currentFilters.status !== "all") {
-        filtered = await filterTransactions(filtered, {
-          status: currentFilters.status,
-        });
-      }
-  
-      if (currentFilters.category) {
-        filtered = await filterTransactions(filtered, {
-          category: currentFilters.category,
-        });
-      }
-  
-      if (userPreferences.compactView) {
-        filtered = filtered.slice(0, userPreferences.itemsPerPage);
-      }
-  
-      // Enhanced fraud analysis for large datasets
-      if (filtered.length > 1000) {
-        const enrichedFiltered = filtered.map((transaction) => {
-          const riskFactors = calculateRiskFactors(transaction, filtered);
-          const patternScore = analyzeTransactionPatterns(transaction, filtered);
-          const anomalyDetection = detectAnomalies(transaction, filtered);
-  
-          return {
-            ...transaction,
-            riskScore: riskFactors + patternScore + anomalyDetection,
-            enrichedData: {
-              riskFactors,
-              patternScore,
-              anomalyDetection,
-              timestamp: Date.now(),
-            },
-          };
-        });
-  
-        setFilteredTransactions(enrichedFiltered);
+      let filtered: Transaction[];
+      
+      if (workerManager.isWorkerSupported) {
+        console.log('Using web worker for filtering...');
+        const startTime = performance.now();
+        filtered = await workerManager.applyFilters(data, currentFilters, userPreferences);
+        const endTime = performance.now();
+        console.log(`Filtering completed in ${(endTime - startTime).toFixed(2)}ms using web worker`);
       } else {
-        setFilteredTransactions(filtered);
+        console.log('Web workers not supported, using fallback...');
+        const startTime = performance.now();
+        filtered = await fallbackApplyFilters(data, currentFilters, userPreferences);
+        const endTime = performance.now();
+        console.log(`Filtering completed in ${(endTime - startTime).toFixed(2)}ms using main thread`);
       }
+
+      setFilteredTransactions(filtered);
   
       setUserPreferences((prev) => ({
         ...prev,
         timestamps: { ...prev.timestamps, updated: Date.now() },
       }));
 
+
       // Add artificial delay if operations are too fast
       await new Promise(resolve => setTimeout(resolve, 300));
       
     } catch (error) {
       console.error("Error applying filters:", error);
+      // Fallback to original data on error
+      setFilteredTransactions(data);
     } finally {
       setIsSearching(false); // Always turn off loading
     }
@@ -388,6 +414,7 @@ export const Dashboard: React.FC = () => {
             value={filters.type || "all"}
             name="type"
             onChange={handleFilterChange}
+            disabled={isSearching}
           >
             <option value="all">All Types</option>
             <option value="debit">Debit</option>
@@ -398,6 +425,7 @@ export const Dashboard: React.FC = () => {
             value={filters.status || "all"}
             name="status"
             onChange={handleFilterChange}
+            disabled={isSearching}
           >
             <option value="all">All Status</option>
             <option value="completed">Completed</option>
@@ -409,6 +437,7 @@ export const Dashboard: React.FC = () => {
             value={filters.category || ""}
             name="category"
             onChange={handleFilterChange}
+            disabled={isSearching}
           >
             <option value="">All Categories</option>
             {getUniqueCategories().map((category) => (
@@ -423,6 +452,17 @@ export const Dashboard: React.FC = () => {
       </div>
 
       <div className="dashboard-content">
+        {generationProgress && (
+          <div className="generation-progress">
+            <div className="progress-bar">
+              <div 
+                className="progress-fill" 
+                style={{ width: `${generationProgress.progress}%` }}
+              ></div>
+            </div>
+            <p>Generating transactions: {generationProgress.generated} / {generationProgress.total} ({generationProgress.progress.toFixed(1)}%)</p>
+          </div>
+        )}
         <TransactionList
           transactions={filteredTransactions}
           totalTransactions={transactions.length}

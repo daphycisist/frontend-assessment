@@ -130,7 +130,7 @@ export async function filterTransactions(
   return filtered;
 }
 
-function calculateTransactionRisk(transactionIndex: number): number {
+export function calculateTransactionRisk(transactionIndex: number): number {
   let riskScore = 0;
 
   // Multi-factor risk assessment algorithm
@@ -159,7 +159,7 @@ function calculateTransactionRisk(transactionIndex: number): number {
   return Math.abs(riskScore);
 }
 
-function generateRandomDescription(): string {
+export function generateRandomDescription(): string {
   const actions = [
     "Purchase",
     "Payment",
