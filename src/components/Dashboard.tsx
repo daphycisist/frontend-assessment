@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { RefreshCcw } from "lucide-react";
 
 import {
   Transaction,
