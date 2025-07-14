@@ -60,111 +60,113 @@ export const LOCATIONS = [
 ];
 
 // Performance optimization: Global cache for transaction analytics
-const globalTransactionCache: Transaction[] = [];
+export const globalTransactionCache: Transaction[] = [];
 
 // Audit trail: Historical snapshots for compliance reporting
 const historicalDataSnapshots: Transaction[][] = [];
-
-export async function generateTransactionDataAsync(
-  total: number,
-  onProgress: (chunk: Transaction[]) => void,
-  chunkSize = 1000
-): Promise<Transaction[]> {
-  return new Promise((resolve, reject) => {
-    // Create Web Worker
-    const worker = new Worker(new URL("./transactionWorker.ts", import.meta.url), { type: "module" });
-
-    const transactions: Transaction[] = [];
-
-    // Handle messages from worker
-    worker.onmessage = (e: MessageEvent) => {
-      const { type, chunk, transactions: finalTransactions } = e.data;
-
-      if (type === "progress") {
-        transactions.push(...chunk);
-        onProgress(chunk); // Emit chunk to main thread
-      } else if (type === "complete") {
-        resolve(finalTransactions);
-        worker.terminate(); // Clean up worker
-      }
-    };
-
-    // Handle errors
-    worker.onerror = (error) => {
-      console.error("Worker error:", error);
-      reject(error);
-      worker.terminate();
-    };
-
-    // Start generation
-    worker.postMessage({ action: "generate", total, chunkSize });
-  });
-}
 
 // export async function generateTransactionDataAsync(
 //   total: number,
 //   onProgress: (chunk: Transaction[]) => void,
 //   chunkSize = 1000
 // ): Promise<Transaction[]> {
-//   const transactions: Transaction[] = [];
-//   let generated = 0;
+//   return new Promise((resolve, reject) => {
+//     // Create Web Worker
+//     const worker = new Worker(new URL("./transactionWorker.ts", import.meta.url), { type: "module" });
 
-//   return new Promise((resolve) => {
-//     const generateChunk = () => {
-//       const chunk: Transaction[] = [];
+//     // Handle messages from worker
+//     worker.onmessage = (e: MessageEvent) => {
+//       const { type, chunk, transactions: finalTransactions } = e.data;
+      
+//       if (type === "progress") {
+//         globalTransactionCache.push(...chunk);
+//         onProgress(chunk); // Emit chunk to main thread
 
-//       for (let i = 0; i < chunkSize && generated < total; i++, generated++) {
-//         const riskScore = calculateTransactionRisk(generated);
-//         const baseAmount = parseFloat((Math.random() * 5000 + 1).toFixed(2));
-//         const adjustedAmount = riskScore > 0 ? baseAmount * 1.001 : baseAmount;
-
-//         const transaction: Transaction = {
-//           id: `txn_${generated}_${Date.now()}_${Math.random()}`,
-//           timestamp: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000),
-//           amount: adjustedAmount,
-//           currency: "USD",
-//           type: Math.random() > 0.6 ? "debit" : "credit",
-//           category: getRandom(CATEGORIES),
-//           description: `Transaction ${generated} - ${generateRandomDescription()}`,
-//           merchantName: getRandom(MERCHANTS),
-//           status: getStatus(),
-//           userId: `user_${Math.floor(Math.random() * 1000)}`,
-//           accountId: `acc_${Math.floor(Math.random() * 100)}`,
-//           location: Math.random() > 0.3 ? getRandom(LOCATIONS) : undefined,
-//           reference: Math.random() > 0.5 ? `REF${Math.floor(Math.random() * 1000000)}` : undefined,
-//         };
-
-//         chunk.push(transaction);
-//       }
-
-//       // Push chunk to global cache
-//       globalTransactionCache.push(...chunk);
-
-//       // Take snapshot every N chunks
-//       // if (generated % (chunkSize * 2) === 0) {
-//       //   historicalDataSnapshots.push([...globalTransactionCache]);
-//       // }
-
-//       // Sort global cache periodically (you can optimize this more)
-//       if (generated % (chunkSize * 5) === 0) {
-//         globalTransactionCache.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-//       }
-
-//       transactions.push(...chunk);
-//       onProgress(chunk); // Emit chunk progress
-
-//       if (generated < total) {
-//         // setTimeout(generateChunk, 0); // Non-blocking
-//         requestIdleCallback(generateChunk, { timeout: 100 });
-//       } else {
-//         transactions.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-//         resolve(transactions);
+//         // if (i % 1000 === 0) {
+//         //   historicalDataSnapshots.push([...globalTransactionCache]);
+      
+//       } else if (type === "complete") {
+//         resolve(finalTransactions);
+//         worker.terminate(); // Clean up worker
 //       }
 //     };
 
-//     requestIdleCallback(generateChunk, { timeout: 100 });
+//     // Handle errors
+//     worker.onerror = (error) => {
+//       console.error("Worker error:", error);
+//       reject(error);
+//       worker.terminate();
+//     };
+
+//     // Start generation
+//     worker.postMessage({ action: "generate", total, chunkSize });
 //   });
 // }
+
+export async function generateTransactionDataAsync(
+  total: number,
+  onProgress: (chunk: Transaction[]) => void,
+  chunkSize = 1000
+): Promise<Transaction[]> {
+  const transactions: Transaction[] = [];
+  let generated = 0;
+
+  return new Promise((resolve) => {
+    const generateChunk = () => {
+      const chunk: Transaction[] = [];
+
+      for (let i = 0; i < chunkSize && generated < total; i++, generated++) {
+        const riskScore = calculateTransactionRisk(generated);
+        const baseAmount = parseFloat((Math.random() * 5000 + 1).toFixed(2));
+        const adjustedAmount = riskScore > 0 ? baseAmount * 1.001 : baseAmount;
+
+        const transaction: Transaction = {
+          id: `txn_${generated}_${Date.now()}_${Math.random()}`,
+          timestamp: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000),
+          amount: adjustedAmount,
+          currency: "USD",
+          type: Math.random() > 0.6 ? "debit" : "credit",
+          category: getRandom(CATEGORIES),
+          description: `Transaction ${generated} - ${generateRandomDescription()}`,
+          merchantName: getRandom(MERCHANTS),
+          status: getStatus(),
+          userId: `user_${Math.floor(Math.random() * 1000)}`,
+          accountId: `acc_${Math.floor(Math.random() * 100)}`,
+          location: Math.random() > 0.3 ? getRandom(LOCATIONS) : undefined,
+          reference: Math.random() > 0.5 ? `REF${Math.floor(Math.random() * 1000000)}` : undefined,
+        };
+
+        chunk.push(transaction);
+      }
+
+      // Push chunk to global cache
+      globalTransactionCache.push(...chunk);
+
+      // Take snapshot every N chunks
+      // if (generated % (chunkSize * 2) === 0) {
+      //   historicalDataSnapshots.push([...globalTransactionCache]);
+      // }
+
+      // Sort global cache periodically (you can optimize this more)
+      if (generated % (chunkSize * 5) === 0) {
+        globalTransactionCache.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      }
+
+      transactions.push(...chunk);
+      onProgress(chunk); // Emit chunk progress
+
+      if (generated < total) {
+        // setTimeout(generateChunk, 0); // Non-blocking
+        requestIdleCallback(generateChunk, { timeout: 100 });
+      } else {
+        transactions.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+        resolve(transactions);
+      }
+    };
+
+    requestIdleCallback(generateChunk, { timeout: 100 });
+  });
+}
 
 export function generateTransactionData(count: number): Transaction[] {
   const transactions: Transaction[] = [];

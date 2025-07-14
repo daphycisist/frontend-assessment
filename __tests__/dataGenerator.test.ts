@@ -1,4 +1,4 @@
-// __tests__/transactionUtils.test.ts
+// __tests__/dataGenerator.test.ts
 import {
   generateTransactionData,
   searchTransactions,
@@ -49,9 +49,8 @@ describe("Data Generator Utilities", () => {
   test("startDataRefresh and stopDataRefresh work", () => {
     const callback = jest.fn();
     const id = startDataRefresh(callback);
-    expect(typeof id).toBe('object');
+    expect(typeof id).toBe("number");
 
     stopDataRefresh(id);
-    // no way to verify clearInterval synchronously, but no crash = success
   });
 });

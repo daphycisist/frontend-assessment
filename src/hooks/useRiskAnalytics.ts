@@ -33,8 +33,8 @@ export const useRiskAnalytics = (
 
       analytics.totalRisk += risk;
       if (risk > 0.7) analytics.highRiskTransactions++;
-      analytics.patterns[tx.id] = pattern;
-      analytics.anomalies[tx.id] = anomaly;
+      analytics.patterns[tx.id!] = pattern;
+      analytics.anomalies[tx.id!] = anomaly;
     }
 
     const timeout = setTimeout(() => {

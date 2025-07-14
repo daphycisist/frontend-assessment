@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">87.8% </span>
+                <span class="strong">88.52% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>108/123</span>
+                <span class='fraction'>108/122</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">86% </span>
+                <span class="strong">86.86% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>86/100</span>
+                <span class='fraction'>86/99</span>
             </div>
         
             
@@ -472,7 +472,7 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -535,9 +535,9 @@ function generateTimeSeriesAnalysis(transactions: Transaction[]) {
   const daily: Record&lt;string, { total: number; count: number }&gt; = {};
 &nbsp;
   transactions.forEach(({ timestamp, amount }) =&gt; {
-    const date = new Date(timestamp).toDateString();
+    const date = new Date(timestamp!).toDateString();
     daily[date] = daily[date] || { total: 0, count: 0 };
-    daily[date].total += amount;
+    daily[date].total += amount!;
     daily[date].count++;
   });
 &nbsp;
@@ -559,8 +559,8 @@ function calculateMarketCorrelation(transactions: Transaction[]) {
   const categoryGroups: Record&lt;string, number[]&gt; = {};
 &nbsp;
   transactions.forEach(({ category, amount }) =&gt; {
-    if (!categoryGroups[category]) categoryGroups[category] = [];
-    categoryGroups[category].push(amount);
+    if (!categoryGroups[category!]) categoryGroups[category!] = [];
+    categoryGroups[category!].push(amount!);
   });
 &nbsp;
   const categories = Object.keys(categoryGroups);
@@ -621,8 +621,8 @@ function performBehaviorClustering(transactions: Transaction[]) {
   const userMap = new Map&lt;string, Transaction[]&gt;();
 &nbsp;
   transactions.forEach((t) =&gt; {
-    if (!userMap.has(t.userId)) userMap.set(t.userId, []);
-    userMap.get(t.userId)!.push(t);
+    if (!userMap.has(t.userId!)) userMap.set(t.userId!, []);
+    userMap.get(t.userId!)!.push(t);
   });
 &nbsp;
   const clusters: Record&lt;string, Transaction[]&gt; = {};
@@ -640,12 +640,12 @@ function performBehaviorClustering(transactions: Transaction[]) {
 &nbsp;
 &nbsp;
 function analyzeSpendingPattern(userTxns: Transaction[]) {
-  const total = userTxns.reduce((sum, t) =&gt; sum + t.amount, 0);
+  const total = userTxns.reduce((sum, t) =&gt; sum + t.amount!, 0);
   const avg = total / userTxns.length;
 &nbsp;
   const categoryCounts: Record&lt;string, number&gt; = {};
   userTxns.forEach((t) =&gt; {
-    categoryCounts[t.category] = (categoryCounts[t.category] || 0) + 1;
+    categoryCounts[t.category!] = (categoryCounts[t.category!] || 0) + 1;
   });
 &nbsp;
   return { avgAmount: avg, totalAmount: total, categoryDistribution: categoryCounts };
@@ -654,15 +654,15 @@ function analyzeSpendingPattern(userTxns: Transaction[]) {
 function calculateFraudScores(transactions: Transaction[]) {
   return transactions.map((txn, idx) =&gt; {
     let score = 0;
-    const txnTime = new Date(txn.timestamp).getTime();
+    const txnTime = new Date(txn.timestamp!).getTime();
 &nbsp;
     for (let i = 0; i &lt; transactions.length; i++) {
       if (i === idx) continue;
       const other = transactions[i];
 &nbsp;
-      const merchantSim = calculateStringSimilarity(txn.merchantName, other.merchantName);
-      const amountDiff = Math.abs(txn.amount - other.amount) / Math.max(txn.amount, other.amount);
-      const timeDiff = Math.abs(txnTime - new Date(other.timestamp).getTime()) / (1000 * 60 * 60);
+      const merchantSim = calculateStringSimilarity(txn.merchantName!, other.merchantName!);
+      const amountDiff = Math.abs(txn.amount! - other.amount!) / Math.max(txn.amount!, other.amount!);
+      const timeDiff = Math.abs(txnTime - new Date(other.timestamp!).getTime()) / (1000 * 60 * 60);
 &nbsp;
       if (merchantSim &gt; 0.8 &amp;&amp; amountDiff &lt; 0.1 &amp;&amp; timeDiff &lt; 1) {
         score += 0.3;
@@ -685,7 +685,7 @@ export function <span class="fstat-no" title="function not covered" >calculateFr
   const processBatch = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >() =</span>&gt; {</span>
     const end = <span class="cstat-no" title="statement not covered" >Math.min(index + batchSize, transactions.length);</span>
 <span class="cstat-no" title="statement not covered" >    for (; index &lt; end; index++) {</span>
-      const txn = <span class="cstat-no" title="statement not covered" >transactions[index];</span>
+      // const txn = transactions[index];
       // Reuse logic here from calculateFraudScores
       const fraudScore = <span class="cstat-no" title="statement not covered" >calculateFraudScores(transactions);</span>
 <span class="cstat-no" title="statement not covered" >      result.push(...fraudScore);</span>
@@ -709,7 +709,7 @@ export function <span class="fstat-no" title="function not covered" >calculateFr
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-07-13T13:11:30.080Z
+                at 2025-07-14T01:22:19.797Z
             </div>
         <script src="prettify.js"></script>
         <script>

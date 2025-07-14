@@ -44,9 +44,9 @@ function generateTimeSeriesAnalysis(transactions: Transaction[]) {
   const daily: Record<string, { total: number; count: number }> = {};
 
   transactions.forEach(({ timestamp, amount }) => {
-    const date = new Date(timestamp).toDateString();
+    const date = new Date(timestamp!).toDateString();
     daily[date] = daily[date] || { total: 0, count: 0 };
-    daily[date].total += amount;
+    daily[date].total += amount!;
     daily[date].count++;
   });
 
@@ -68,8 +68,8 @@ function calculateMarketCorrelation(transactions: Transaction[]) {
   const categoryGroups: Record<string, number[]> = {};
 
   transactions.forEach(({ category, amount }) => {
-    if (!categoryGroups[category]) categoryGroups[category] = [];
-    categoryGroups[category].push(amount);
+    if (!categoryGroups[category!]) categoryGroups[category!] = [];
+    categoryGroups[category!].push(amount!);
   });
 
   const categories = Object.keys(categoryGroups);
@@ -130,8 +130,8 @@ function performBehaviorClustering(transactions: Transaction[]) {
   const userMap = new Map<string, Transaction[]>();
 
   transactions.forEach((t) => {
-    if (!userMap.has(t.userId)) userMap.set(t.userId, []);
-    userMap.get(t.userId)!.push(t);
+    if (!userMap.has(t.userId!)) userMap.set(t.userId!, []);
+    userMap.get(t.userId!)!.push(t);
   });
 
   const clusters: Record<string, Transaction[]> = {};
@@ -149,12 +149,12 @@ function performBehaviorClustering(transactions: Transaction[]) {
 
 
 function analyzeSpendingPattern(userTxns: Transaction[]) {
-  const total = userTxns.reduce((sum, t) => sum + t.amount, 0);
+  const total = userTxns.reduce((sum, t) => sum + t.amount!, 0);
   const avg = total / userTxns.length;
 
   const categoryCounts: Record<string, number> = {};
   userTxns.forEach((t) => {
-    categoryCounts[t.category] = (categoryCounts[t.category] || 0) + 1;
+    categoryCounts[t.category!] = (categoryCounts[t.category!] || 0) + 1;
   });
 
   return { avgAmount: avg, totalAmount: total, categoryDistribution: categoryCounts };
@@ -163,15 +163,15 @@ function analyzeSpendingPattern(userTxns: Transaction[]) {
 function calculateFraudScores(transactions: Transaction[]) {
   return transactions.map((txn, idx) => {
     let score = 0;
-    const txnTime = new Date(txn.timestamp).getTime();
+    const txnTime = new Date(txn.timestamp!).getTime();
 
     for (let i = 0; i < transactions.length; i++) {
       if (i === idx) continue;
       const other = transactions[i];
 
-      const merchantSim = calculateStringSimilarity(txn.merchantName, other.merchantName);
-      const amountDiff = Math.abs(txn.amount - other.amount) / Math.max(txn.amount, other.amount);
-      const timeDiff = Math.abs(txnTime - new Date(other.timestamp).getTime()) / (1000 * 60 * 60);
+      const merchantSim = calculateStringSimilarity(txn.merchantName!, other.merchantName!);
+      const amountDiff = Math.abs(txn.amount! - other.amount!) / Math.max(txn.amount!, other.amount!);
+      const timeDiff = Math.abs(txnTime - new Date(other.timestamp!).getTime()) / (1000 * 60 * 60);
 
       if (merchantSim > 0.8 && amountDiff < 0.1 && timeDiff < 1) {
         score += 0.3;

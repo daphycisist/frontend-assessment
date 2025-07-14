@@ -1,15 +1,15 @@
 // transactionWorker.ts
 import { Transaction } from "../types/transaction";
-import { calculateTransactionRisk } from "./dataGenerator"; // Import your risk function
+import { calculateTransactionRisk, generateRandomDescription, getRandom, getStatus } from "./dataGenerator"; // Import your risk function
 
 const CATEGORIES = ["Food", "Travel", "Shopping", "Utilities", "Entertainment"];
 const MERCHANTS = ["Amazon", "Starbucks", "Uber", "Walmart", "Netflix"];
 const LOCATIONS = ["New York, NY", "London, UK", "Tokyo, JP", "Sydney, AU"];
-const STATUSES = ["completed", "pending", "failed"] as Transaction['status'][];
+// const STATUSES = ["completed", "pending", "failed"] as Transaction['status'][];
 
-const getRandom = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
-const getStatus = () => getRandom(STATUSES);
-const generateRandomDescription = () => `Purchase at ${getRandom(MERCHANTS)}`;
+// const getRandom = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+// const getStatus = () => getRandom(STATUSES);
+// const generateRandomDescription = () => `Purchase at ${getRandom(MERCHANTS)}`;
 
 self.onmessage = (e: MessageEvent) => {
   const { total, chunkSize, action } = e.data;
@@ -46,8 +46,9 @@ self.onmessage = (e: MessageEvent) => {
       }
 
       // Sort chunk by timestamp
-      chunk.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-
+      // chunk.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      
+      transactions.push(...chunk);
       // Send chunk to main thread
       self.postMessage({ type: "progress", chunk });
 
@@ -55,8 +56,8 @@ self.onmessage = (e: MessageEvent) => {
         setTimeout(generateChunk, 0); // Continue in worker
       } else {
         // Send final sorted transactions
-        transactions.push(...chunk);
         self.postMessage({ type: "complete", transactions });
+        // self.postMessage({ type: "complete" });
       }
     };
 

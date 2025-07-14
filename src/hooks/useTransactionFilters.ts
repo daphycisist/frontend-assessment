@@ -17,7 +17,6 @@ export const useTransactionFilters = (
   const applyFilters = useCallback(
     (data: Transaction[], filters: FilterOptions, search: string) => {
       let filtered = [...data];
-
       if (search) {
         filtered = searchTransactions(filtered, search);
       }
@@ -57,6 +56,7 @@ export const useTransactionFilters = (
         ...prev,
         timestamps: { ...prev.timestamps, updated: Date.now() },
       }));
+      return filtered;
     },
     [userPreferences.compactView, userPreferences.itemsPerPage, setFilteredTransactions, setUserPreferences]
   );

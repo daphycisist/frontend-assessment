@@ -48,32 +48,32 @@ export const TransactionList: React.FC<TransactionListProps> = ({
     };
   }, []);
 
-  // Format transactions
-  const formatTransaction = useCallback(
-    (t: Transaction) => ({
-      ...t,
-      formattedAmount: new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-      }).format(t.amount),
-    }),
-    []
-  );
+  // // Format transactions
+  // const formatTransaction = useCallback(
+  //   (t: Transaction) => ({
+  //     ...t,
+  //     formattedAmount: new Intl.NumberFormat("en-US", {
+  //       style: "currency",
+  //       currency: "USD",
+  //     }).format(t.amount),
+  //   }),
+  //   []
+  // );
 
   // Memoized paginated data
   const paginatedData = useMemo(() => {
     const itemsPerPage = userPreferences.itemsPerPage;
     const start = (currentPage - 1) * itemsPerPage;
     const end = start + itemsPerPage;
-    return transactions.slice(start, end).map(formatTransaction);
-  }, [transactions, currentPage, userPreferences.itemsPerPage, formatTransaction]);
+    return transactions.slice(start, end);
+  }, [currentPage, userPreferences.itemsPerPage]);
 
   // Update displayed transactions
   useEffect(() => {
     const itemsPerPage = userPreferences.itemsPerPage;
     const maxPages = Math.ceil((totalTransactions || transactions.length) / itemsPerPage);
     setPages((prev) => ({ ...prev, totalPages: maxPages }));
-  }, [totalTransactions, userPreferences.itemsPerPage]);
+  }, [totalTransactions, userPreferences.itemsPerPage, transactions.length]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -127,27 +127,6 @@ export const TransactionList: React.FC<TransactionListProps> = ({
     },
     [currentPage, handlePage]
   );
-
-  //  const Row = useCallback(
-  //   ({ index, style }: { index: number; style: React.CSSProperties }) => {
-  //     const transaction = displayedTransactions[index];
-  //     if (!transaction) return null;
-  //     return (
-  //       <div style={style} className="transaction-row">
-  //         <MemoizedTransactionItem
-  //           transaction={transaction}
-  //           isSelected={!!selectedItems[transaction.id]}
-  //           isHovered={hoveredItem === transaction.id}
-  //           onClick={() => handleItemClick(transaction)}
-  //           onMouseEnter={() => handleMouseEnter(transaction.id)}
-  //           onMouseLeave={handleMouseLeave}
-  //           rowIndex={index}
-  //         />
-  //       </div>
-  //     );
-  //   },
-  //   [paginatedData, selectedItems, hoveredItem, handleItemClick, handleMouseEnter, handleMouseLeave]
-  // );
 
   return (
     <div className="transaction-list" role="region" aria-label="Transaction list">

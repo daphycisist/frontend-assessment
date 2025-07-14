@@ -12,6 +12,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: #f5f5f5;
+  /* background: linear-gradient(151deg, #000e4299 4%, #fff0 80%); */
   overflow-x: hidden;
 }
 
@@ -287,6 +288,11 @@ body {
   margin-top: 4px;
 }
 
+.search-suggestions[aria-expanded="true"] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .suggestion-item,
 .history-item {
   padding: 12px 16px;
@@ -297,8 +303,12 @@ body {
 }
 
 .suggestion-item:hover,
-.history-item:hover {
-  background-color: #f8f9fa;
+.history-item:hover,
+.suggestion-item.focused,
+.history-item.focused {
+  /* background-color: #f8f9fa; */
+  background: #e3f2fd;
+  color: #1890ff;
 }
 
 .suggestion-item:last-child,

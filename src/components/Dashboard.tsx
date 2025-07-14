@@ -5,6 +5,7 @@ import {
   FilterOptions,
   TransactionSummary,
   UserPreferences,
+  UserContextType,
 } from "../types/transaction";
 import {
   generateTransactionDataAsync,
@@ -12,14 +13,14 @@ import {
   calculateSummary,
   startDataRefresh,
   stopDataRefresh,
-  generateTransactionData,
+  // generateTransactionData,
 } from "../utils/dataGenerator";
 // import { TransactionList } from "./TransactionList"; // Use optimized TransactionList
 import { SearchBar } from "./SearchBar";
 import { useUserContext } from "../hooks/useUserContext";
 import { DollarSign, TrendingUp, TrendingDown, Clock } from "lucide-react";
 // import { formatTransactionDate, getDateRange } from "../utils/dateHelpers";
-// import { generateRiskAssessment } from "../utils/analyticsEngine";
+import { generateRiskAssessment } from "../utils/analyticsEngine";
 import { ViewCard } from "./ViewCard";
 import { useTransactionFilters } from "../hooks/useTransactionFilters";
 import { useRiskAnalytics } from "../hooks/useRiskAnalytics";
@@ -30,11 +31,8 @@ import { TransactionFilters } from "./TransactionFilters";
 import { TransactionList } from "./TransactionList";
 import { ErrorBoundary } from "./ErrorBoundary";
 
-// Web Worker for data generation
-// const worker = typeof window !== "undefined" ? new Worker(new URL("./worker.ts", import.meta.url)) : null;
-
 export const Dashboard: React.FC = () => {
-  const { globalSettings, trackActivity } = useUserContext();
+  const { globalSettings, trackActivity } = useUserContext() as UserContextType;
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
@@ -100,43 +98,56 @@ export const Dashboard: React.FC = () => {
 
   // Load initial data with Web Worker
   useEffect(() => {
+    let isMounted = true;
     const loadInitialData = async () => {
+      const initialData: Transaction[] = [];
       setLoading(true);
-      // if (worker) {
-      //   worker.onmessage = ({ data }) => {
-      //     if (data.chunk) {
-      //       throttle((chunk: Transaction[]) => {
-      //         setTransactions((prev) => [...prev, ...chunk]);
-      //         setFilteredTransactions((prev) => [...prev, ...chunk]);
-      //         updateSummary(chunk);
-      //       }, 500)(data.chunk);
-      //     } else if (data.done) {
-      //       setLoading(false);
-      //     }
-      //   };
-      //   worker.postMessage({ total: 500, chunkSize: 500 });
-      // } else {
-        await generateTransactionDataAsync(
-          500,
-          throttle((chunk: Transaction[]) => {
-            setTransactions((prev) => [...prev, ...chunk]);
-            setFilteredTransactions((prev) => [...prev, ...chunk]);
-            updateSummary(chunk);
-          }, 500),
-          500
-        );
+
+      await generateTransactionDataAsync(
+      1_000,
+      (chunk: Transaction[]) => {
+          console.log('hel')
+          if (initialData?.length < 1000) initialData.push(...chunk);
+          setTransactions((prev) => [...prev, ...chunk]);
+          setFilteredTransactions((prev) => [...prev, ...chunk]);
+        },
+        100
+      );
+      // initialData = globalTransactionCache?.slice(0, 1000);
+
+      // setTransactions(globalTransactionCache);
+      // setFilteredTransactions(globalTransactionCache);
+      // setTransactions((prev) => [...prev, ...chunk]);
+      // setFilteredTransactions((prev) => [...prev, ...chunk]);
+      // updateSummary(chunk);
       // }
+      if (initialData.length > 1000) {
+        console.log("Starting risk assessment...");
+        const metrics = generateRiskAssessment(initialData.slice(0, 1000));
+        console.log(
+          "Risk assessment completed:",
+          metrics.processingTime + "ms"
+        );
+      }
+
       setLoading(false);
     };
 
-    loadInitialData();
+    if (isMounted) loadInitialData();
     return () => {
+      isMounted = false;
       setTransactions([]);
       setFilteredTransactions([]);
       setSummary({} as TransactionSummary);
       // if (worker) worker.terminate();
     };
   }, [updateSummary, throttle]);
+
+  useEffect(() => {
+    if (filteredTransactions?.length) {
+      updateSummary(filteredTransactions);
+    }
+  }, [filteredTransactions, updateSummary])
 
   // Auto-refresh with capped transactions
   useEffect(() => {
@@ -157,14 +168,14 @@ export const Dashboard: React.FC = () => {
 
     const intervalId = startDataRefresh(() => {
       if (isInteracting) return; // Skip refresh during interaction
-      setTransactions((currentTransactions) => {
-        const newData = generateTransactionData(500);
-        // const updatedData = [...currentTransactions, ...newData]; // Append and cap at 1,000
-        const updatedData = [...currentTransactions, ...newData].slice(-1000); // Append and cap at 1,000
-        updateSummary(newData);
-        applyFilters(updatedData, filters, "");
-        return updatedData;
-      });
+      // setTransactions((currentTransactions) => {
+      //   const newData = generateTransactionData(200);
+      //   const updatedData = [...currentTransactions, ...newData]; // Append and cap at 1,000
+      //   // const updatedData = [...currentTransactions, ...newData].slice(-1000); // Append and cap at 1,000
+      //   updateSummary(newData);
+      //   applyFilters(updatedData, filters, "");
+      //   return updatedData;
+      // });
     }, refreshInterval);
 
     return () => {
@@ -219,12 +230,12 @@ export const Dashboard: React.FC = () => {
 
   // Apply filters when transactions or filters change
   useEffect(() => {
-    applyFilters(transactions, filters, "");
+    applyFilters(transactions, filters, filters?.searchTerm ?? '');
   }, [transactions, filters, applyFilters]);
 
   // Run analytics on filtered transactions
   useEffect(() => {
-    if (filteredTransactions.length > 500) {
+    if (filteredTransactions.length > 1000) {
       requestIdleCallback(() => runAdvancedAnalytics());
     }
   }, [filteredTransactions, runAdvancedAnalytics]);
@@ -247,7 +258,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <div className="stat-content">
               <div className="stat-value">
-                {filteredTransactions.length.toLocaleString()}
+                {filteredTransactions?.length.toLocaleString()}
                 {filteredTransactions.length !== transactions.length && (
                   <span className="stat-total"> of {transactions.length.toLocaleString()}</span>
                 )}

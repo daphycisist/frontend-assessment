@@ -20,8 +20,11 @@ export const SearchBar: React.FC<SearchBarProps> = (
   });
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [focusedSuggestion, setFocusedSuggestion] = useState<number>(-1);
-  const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+  const [isListOpen, setIsListOpen] = useState(false);
+
+  const debounceTimeout = useRef<any | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLInputElement>(null);
 
   // Debounce function
   const debounce = useCallback(<T extends (...args: any[]) => void>(fn: T, delay: number) => {
@@ -84,31 +87,14 @@ export const SearchBar: React.FC<SearchBarProps> = (
 
   const generateSuggestions = useCallback((term: string) => {
     const commonTerms = [
-      "amazon",
-      "starbucks",
-      "walmart",
-      "target",
-      "mcdonalds",
-      "shell",
-      "netflix",
-      "spotify",
-      "uber",
-      "lyft",
-      "apple",
-      "google",
-      "paypal",
-      "venmo",
-      "square",
-      "stripe",
+      "amazon", "starbucks", "walmart", "target", "mcdonalds",
+      "shell", "netflix", "spotify", "uber", "lyft", "apple", "google",
+      "paypal", "venmo", "square", "stripe",
     ];
 
-    const filtered = commonTerms.filter((item) => {
-      return (
-        item.toLowerCase().includes(term.toLowerCase()) ||
-        item.toLowerCase().startsWith(term.toLowerCase()) ||
-        term.toLowerCase().includes(item.toLowerCase())
-      );
-    });
+    const filtered = commonTerms.filter((item) =>
+      item.toLowerCase().includes(term.toLowerCase())
+    );
 
     const sorted = filtered.sort((a, b) => {
       const aScore = calculateRelevanceScore(a, term);
@@ -116,7 +102,9 @@ export const SearchBar: React.FC<SearchBarProps> = (
       return bScore - aScore;
     });
 
-    setSuggestions(sorted.slice(0, 5));
+    const result = sorted.slice(0, 5);
+    setSuggestions(result);
+    return result;
   }, []);
 
   // Debounced search handler
@@ -128,9 +116,11 @@ export const SearchBar: React.FC<SearchBarProps> = (
       if (term.length > 2) {
         const analytics = analyzeSearchPatterns(term);
         console.log("Search analytics:", analytics);
-        generateSuggestions(term);
+        const newSuggestions = generateSuggestions(term);
+        setIsListOpen(newSuggestions.length > 0);
       } else {
         setSuggestions([]);
+        setIsListOpen(term.length === 0 && searchHistory.length > 0);
       }
       setIsSearching(false);
     }, 300),
@@ -144,24 +134,18 @@ export const SearchBar: React.FC<SearchBarProps> = (
       // Generate search analytics for user behavior tracking
       const searchAnalytics = analyzeSearchPatterns(searchTerm);
       console.log("Search analytics:", searchAnalytics);
-
-      generateSuggestions(searchTerm);
-
+      const newSuggestions = generateSuggestions(searchTerm);
+      setIsListOpen(newSuggestions.length > 0);
       setIsSearching(false);
     } else {
       setSuggestions([]);
+      setIsListOpen(searchTerm.length === 0 && searchHistory.length > 0);
     }
-  }, [searchTerm, generateSuggestions, isSearching]);
+  }, [searchTerm, generateSuggestions, isSearching, searchHistory.length]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+    const value = e.target.value.replace(/[<>{}]/g, "");
     setSearchTerm(value);
-
-    // Basic sanitization to prevent XSS
-    if (/[<>{}]/.test(value)) {
-      console.warn("Invalid characters detected in search input");
-      return;
-    }
 
     // Enhanced security validation for longer inputs
     if (value.length > 10) {
@@ -181,13 +165,15 @@ export const SearchBar: React.FC<SearchBarProps> = (
       }
     }
     
+    setFocusedSuggestion(-1);
     debouncedSearch(value);
   };
 
-  const handleClear = () => {
+   const handleClear = () => {
     setSearchTerm("");
     setSuggestions([]);
     setFocusedSuggestion(-1);
+    setIsListOpen(searchHistory.length > 0);
     onSearch("");
     inputRef.current?.focus();
   };
@@ -196,40 +182,60 @@ export const SearchBar: React.FC<SearchBarProps> = (
     setSearchTerm(suggestion);
     setSuggestions([]);
     setFocusedSuggestion(-1);
+    setIsListOpen(false);
     onSearch(suggestion);
     inputRef.current?.focus();
   };
 
   // Keyboard navigation for suggestions
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (suggestions.length === 0) return;
-
+     if (!isListOpen) return;
+    
+    const items = searchTerm.length > 0 ? suggestions : searchHistory.slice(0, 5);
+    if (!items.length) return;
+  
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setFocusedSuggestion((prev) => Math.min(prev + 1, suggestions.length - 1));
+      setFocusedSuggestion((prev) => Math.min(prev + 1, items.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setFocusedSuggestion((prev) => Math.max(prev - 1, -1));
     } else if (e.key === "Enter" && focusedSuggestion >= 0) {
       e.preventDefault();
-      handleSuggestionClick(suggestions[focusedSuggestion]);
+      handleSuggestionClick(items[focusedSuggestion]);
     } else if (e.key === "Escape") {
       setSuggestions([]);
       setFocusedSuggestion(-1);
+      setIsListOpen(false);
+      inputRef.current?.focus();
     }
   };
 
   // Cleanup on unmount
   useEffect(() => {
+    // Ensure input focus on mount
+    inputRef.current?.focus();
     return () => {
       if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
     };
   }, []);
 
+    // Scroll focused suggestion into view
+  useEffect(() => {
+    if (focusedSuggestion >= 0 && listRef.current) {
+      const activeElement = listRef.current.children[
+        searchTerm.length === 0 ? focusedSuggestion + 1 : focusedSuggestion
+      ] as HTMLElement;
+      if (activeElement) {
+        activeElement.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    }
+  }, [focusedSuggestion, searchTerm]);
+
   return (
     <div className="search-bar">
       <div className="search-input-container">
-        <div className="search-icon">
+        <div className="search-icon" data-testid="search-icon">
           <Search size={20} />
         </div>
         <input
@@ -239,13 +245,18 @@ export const SearchBar: React.FC<SearchBarProps> = (
           onKeyDown={handleKeyDown}
           onChange={handleInputChange}
           placeholder={placeholder}
+          ref={inputRef}
           className="search-input"
           aria-label="Search transactions"
           aria-autocomplete="list"
           aria-controls="search-suggestions"
+          aria-expanded={isListOpen}
+          aria-activedescendant={
+            focusedSuggestion >= 0 ? `suggestion-${focusedSuggestion}` : undefined
+          }
         />
         {searchTerm && (
-          <button onClick={handleClear} className="clear-button" type="button">
+          <button onClick={handleClear} className="clear-button" type="button" aria-label="Clear search">
             <X size={16} />
           </button>
         )}
@@ -256,18 +267,20 @@ export const SearchBar: React.FC<SearchBarProps> = (
         )}
       </div>
 
-      {(suggestions.length > 0 || (searchHistory.length > 0 && searchTerm.length === 0)) && (
-        <div className="search-suggestions" role="listbox" id="search-suggestions" aria-live="polite">
+      {isListOpen && (
+        <div className="search-suggestions" role="listbox" id="search-suggestions" aria-live="polite" ref={listRef}>
           {searchTerm.length > 0 && suggestions.length > 0 ? (
             suggestions.map((suggestion, index) => (
               <div
                 key={index}
+                id={`suggestion-${index}`}
                 className={`suggestion-item ${index === focusedSuggestion ? "focused" : ""}`}
                 onClick={() => handleSuggestionClick(suggestion)}
                 onMouseEnter={() => setFocusedSuggestion(index)}
                 role="option"
                 aria-selected={index === focusedSuggestion}
                 tabIndex={0}
+                aria-describedby={`suggestion-${index}-description`}
               >
                 <span>
                   {suggestion.split(new RegExp(`(${searchTerm})`, "i")).map((part, i) =>
@@ -286,8 +299,8 @@ export const SearchBar: React.FC<SearchBarProps> = (
               {searchHistory.slice(0, 5).map((item, index) => (
                 <div
                   key={index}
-                  className={`history-item ${index === focusedSuggestion ? "focused" : ""
-                    }`}
+                  id={`suggestion-${index}`}
+                  className={`history-item ${index === focusedSuggestion ? "focused" : ""}`}
                   onClick={() => handleSuggestionClick(item)}
                   onMouseEnter={() => setFocusedSuggestion(index)}
                   role="option"
