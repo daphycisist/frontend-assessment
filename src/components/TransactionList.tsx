@@ -1,20 +1,44 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { Virtuoso } from 'react-virtuoso'
 import { Transaction } from "../types/transaction";
-import { format } from "date-fns";
+import { TransactionItem } from "./TransactionItem";
+import { TransactionItemSkeleton } from "./TransactionItemSkeleton";
 
 interface TransactionListProps {
   transactions: Transaction[];
   totalTransactions?: number;
   onTransactionClick: (transaction: Transaction) => void;
+  isLoading?: boolean;
 }
+
+const PAGE_SIZE = 10;
+
+const sortTransactions = (transactions: Transaction[]) => {
+  const sortedTransactions = transactions.sort((a, b) => {
+    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+  });
+  return sortedTransactions;
+};
 
 export const TransactionList: React.FC<TransactionListProps> = ({
   transactions,
   totalTransactions,
   onTransactionClick,
+  isLoading,
 }) => {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const [visibleData, setVisibleData] = useState(() =>
+    sortTransactions(transactions.slice(0, PAGE_SIZE))
+  );
+  const page = useRef(1);
+
+
+  useEffect(() => {
+    // Reset pagination when transactions prop changes
+    setVisibleData(sortTransactions(transactions.slice(0, PAGE_SIZE)));
+    page.current = 1; // Reset page counter
+  }, [transactions]);
 
   useEffect(() => {
     // Pre-calculate formatted amounts for display optimization
@@ -36,9 +60,10 @@ export const TransactionList: React.FC<TransactionListProps> = ({
         formattedTransactions.length.toString()
       );
     }
-  });
+  }, [transactions]);
 
   const handleItemClick = (transaction: Transaction) => {
+    console.log(transaction);
     const updatedSelected = new Set(selectedItems);
     if (updatedSelected.has(transaction.id)) {
       updatedSelected.delete(transaction.id);
@@ -46,6 +71,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
       updatedSelected.add(transaction.id);
     }
     setSelectedItems(updatedSelected);
+
     onTransactionClick(transaction);
   };
 
@@ -57,9 +83,23 @@ export const TransactionList: React.FC<TransactionListProps> = ({
     setHoveredItem(null);
   };
 
-  const sortedTransactions = transactions.sort((a, b) => {
-    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-  });
+  const totalAmount = useMemo(() => new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(transactions.reduce((sum, t) => sum + t.amount, 0)), [transactions]);
+
+
+  const handleEndReached = () => {
+    const nextPage = page.current + 1;
+    const start = (nextPage - 1) * PAGE_SIZE;
+    const end = start + PAGE_SIZE;
+    const nextSlice = transactions.slice(start, end);
+
+    if (nextSlice.length > 0) {
+      setVisibleData((prev) => sortTransactions([...prev, ...nextSlice]));
+      page.current = nextPage;
+    }
+  };
 
   return (
     <div
@@ -77,147 +117,65 @@ export const TransactionList: React.FC<TransactionListProps> = ({
         </h2>
         <span className="total-amount" aria-live="polite">
           Total:{" "}
-          {new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
-          }).format(transactions.reduce((sum, t) => sum + t.amount, 0))}
+          {totalAmount}
         </span>
       </div>
-
-      <div
-        className="transaction-list-container"
-        role="grid"
-        aria-labelledby="transaction-list-title"
-        aria-rowcount={sortedTransactions.length}
-        tabIndex={0}
-      >
-        {sortedTransactions.map((transaction, index) => (
-          <TransactionItem
-            key={transaction.id}
-            transaction={transaction}
-            isSelected={selectedItems.has(transaction.id)}
-            isHovered={hoveredItem === transaction.id}
-            onClick={() => handleItemClick(transaction)}
-            onMouseEnter={() => handleMouseEnter(transaction.id)}
-            onMouseLeave={handleMouseLeave}
-            rowIndex={index}
-          />
-        ))}
-      </div>
-    </div>
-  );
-};
-
-const TransactionItem: React.FC<{
-  transaction: Transaction;
-  isSelected: boolean;
-  isHovered: boolean;
-  onClick: () => void;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
-  rowIndex: number;
-}> = ({
-  transaction,
-  isSelected,
-  isHovered,
-  onClick,
-  onMouseEnter,
-  onMouseLeave,
-  rowIndex,
-}) => {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount);
-  };
-
-  const formatDate = (date: Date) => {
-    return format(date, "MMM dd, yyyy HH:mm");
-  };
-
-  const getItemStyle = () => {
-    const baseStyle = {
-      backgroundColor: isSelected ? "#e3f2fd" : "#ffffff",
-      borderColor: isHovered ? "#2196f3" : "#e0e0e0",
-      transform: isHovered ? "translateY(-1px)" : "translateY(0)",
-      boxShadow: isHovered
-        ? "0 4px 8px rgba(0,0,0,0.1)"
-        : "0 2px 4px rgba(0,0,0,0.05)",
-    };
-
-    if (transaction.type === "debit") {
-      return {
-        ...baseStyle,
-        borderLeft: "4px solid #f44336",
-      };
-    } else {
-      return {
-        ...baseStyle,
-        borderLeft: "4px solid #4caf50",
-      };
-    }
-  };
-
-  return (
-    <div
-      className="transaction-item"
-      style={getItemStyle()}
-      onClick={onClick}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-      role="gridcell"
-      aria-rowindex={rowIndex + 1}
-      aria-selected={isSelected}
-      aria-describedby={`transaction-${transaction.id}-details`}
-      tabIndex={0}
-    >
-      <div className="transaction-main">
-        <div className="transaction-merchant">
-          <span className="merchant-name">{transaction.merchantName}</span>
-          <span className="transaction-category">{transaction.category}</span>
-        </div>
-        <div className="transaction-amount">
-          <span className={`amount ${transaction.type}`}>
-            {transaction.type === "debit" ? "-" : "+"}
-            {formatCurrency(transaction.amount)}
-          </span>
-        </div>
-      </div>
-      <div
-        className="transaction-details"
-        id={`transaction-${transaction.id}-details`}
-      >
-        <div
-          className="transaction-description"
-          aria-label={`Description: ${transaction.description}`}
-        >
-          {transaction.description}
-        </div>
-        <div className="transaction-meta">
-          <span
-            className="transaction-date"
-            aria-label={`Date: ${formatDate(transaction.timestamp)}`}
+      {
+        isLoading ? (
+          <div
+            className="transaction-list-container"
+            role="grid"
+            aria-labelledby="transaction-list-title"
+            aria-rowcount={10}
+            aria-busy="true"
+            tabIndex={0}
           >
-            {formatDate(transaction.timestamp)}
-          </span>
-          <span
-            className={`transaction-status ${transaction.status}`}
-            aria-label={`Status: ${transaction.status}`}
-            aria-live="polite"
-          >
-            {transaction.status}
-          </span>
-          {transaction.location && (
-            <span
-              className="transaction-location"
-              aria-label={`Location: ${transaction.location}`}
+            {
+              Array.from({ length: 10 }, (_, i) => i).map((index) => (
+                <div key={`skeleton-row-${index}`} role="row">
+                  <TransactionItemSkeleton
+                    key={`skeleton-${index}`}
+                    rowIndex={index}
+                  />
+                </div>
+              ))
+            }
+          </div>
+        ) : (
+          visibleData.length > 0 ? (
+            <div
+              className="transaction-list-container"
+              role="grid"
+              aria-labelledby="transaction-list-title"
+              aria-rowcount={visibleData.length}
+              tabIndex={0}
             >
-              {transaction.location}
-            </span>
-          )}
-        </div>
-      </div>
+              <Virtuoso
+                style={{ height: '600px' }}
+                data={visibleData}
+                endReached={handleEndReached}
+                itemContent={(index, transaction) => (
+                  <div role="row">
+                    <TransactionItem
+                      key={transaction.id}
+                      transaction={transaction}
+                      isSelected={selectedItems.has(transaction.id)}
+                      isHovered={hoveredItem === transaction.id}
+                      onClick={() => handleItemClick(transaction)}
+                      onMouseEnter={() => handleMouseEnter(transaction.id)}
+                      onMouseLeave={handleMouseLeave}
+                      rowIndex={index}
+                    />
+                  </div>
+                )}
+              />
+            </div>
+          ) : (
+            <p className="empty-transaction-message">No transactions found</p>
+          )
+        )
+      }
+
     </div>
   );
 };

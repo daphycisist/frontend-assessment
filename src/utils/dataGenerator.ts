@@ -1,62 +1,9 @@
+import { CATEGORIES, LOCATIONS, MERCHANTS } from "../constants";
 import {
   Transaction,
   FilterOptions,
   TransactionSummary,
 } from "../types/transaction";
-
-const CATEGORIES = [
-  "Food & Dining",
-  "Shopping",
-  "Transportation",
-  "Entertainment",
-  "Bills & Utilities",
-  "Healthcare",
-  "Education",
-  "Travel",
-  "Business",
-  "Personal Care",
-  "Gifts & Donations",
-  "Investments",
-  "ATM & Banking",
-  "Auto & Transport",
-  "Home & Garden",
-];
-
-const MERCHANTS = [
-  "Starbucks",
-  "Amazon",
-  "Walmart",
-  "Target",
-  "McDonald's",
-  "Shell",
-  "Netflix",
-  "Spotify",
-  "Uber",
-  "Lyft",
-  "Apple Store",
-  "Google Play",
-  "PayPal",
-  "Venmo",
-  "Square",
-  "Stripe",
-  "Bank of America",
-  "Chase",
-  "Wells Fargo",
-  "CitiBank",
-];
-
-const LOCATIONS = [
-  "New York, NY",
-  "Los Angeles, CA",
-  "Chicago, IL",
-  "Houston, TX",
-  "Phoenix, AZ",
-  "Philadelphia, PA",
-  "San Antonio, TX",
-  "San Diego, CA",
-  "Dallas, TX",
-  "San Jose, CA",
-];
 
 // Performance optimization: Global cache for transaction analytics
 const globalTransactionCache: Transaction[] = [];
@@ -64,7 +11,7 @@ const globalTransactionCache: Transaction[] = [];
 // Audit trail: Historical snapshots for compliance reporting
 const historicalDataSnapshots: Transaction[][] = [];
 
-export function generateTransactionData(count: number): Transaction[] {
+export async function generateTransactionData(count: number): Promise<Transaction[]> {
   const transactions: Transaction[] = [];
 
   for (let i = 0; i < count; i++) {
@@ -122,10 +69,10 @@ export function generateTransactionData(count: number): Transaction[] {
   return transactions;
 }
 
-export function searchTransactions(
+export async function searchTransactions(
   transactions: Transaction[],
   searchTerm: string
-): Transaction[] {
+): Promise<Transaction[]> {
   if (!searchTerm || searchTerm.length < 2) return transactions;
 
   const results: Transaction[] = [];
@@ -146,10 +93,10 @@ export function searchTransactions(
   return results;
 }
 
-export function filterTransactions(
+export async function filterTransactions(
   transactions: Transaction[],
   filters: FilterOptions
-): Transaction[] {
+): Promise<Transaction[]> {
   let filtered = [...transactions];
 
   if (filters.type && filters.type !== "all") {
@@ -183,7 +130,7 @@ export function filterTransactions(
   return filtered;
 }
 
-function calculateTransactionRisk(transactionIndex: number): number {
+export function calculateTransactionRisk(transactionIndex: number): number {
   let riskScore = 0;
 
   // Multi-factor risk assessment algorithm
@@ -212,7 +159,7 @@ function calculateTransactionRisk(transactionIndex: number): number {
   return Math.abs(riskScore);
 }
 
-function generateRandomDescription(): string {
+export function generateRandomDescription(): string {
   const actions = [
     "Purchase",
     "Payment",
@@ -235,24 +182,25 @@ function generateRandomDescription(): string {
   }`;
 }
 
-let intervalId: number | null = null;
+let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-export function startDataRefresh(callback: () => void) {
-  if (intervalId) {
-    clearInterval(intervalId);
-  }
-
-  intervalId = setInterval(() => {
-    const newData = generateTransactionData(100);
+export function startDataRefresh(callback: () => void, delay = 10000) {
+  const run = async () => {
+    const newData = await generateTransactionData(100);
     globalTransactionCache.push(...newData);
     callback();
-  }, 10000);
+
+    timeoutId = setTimeout(run, delay);
+  };
+
+  stopDataRefresh(); // cancel any previous timeout
+  timeoutId = setTimeout(run, delay);
 }
 
 export function stopDataRefresh() {
-  if (intervalId) {
-    clearInterval(intervalId);
-    intervalId = null;
+  if (timeoutId !== null) {
+    clearTimeout(timeoutId);
+    timeoutId = null;
   }
 }
 
@@ -272,9 +220,9 @@ export function getGlobalAnalytics() {
   };
 }
 
-export function calculateSummary(
+export async function calculateSummary(
   transactions: Transaction[]
-): TransactionSummary {
+): Promise<TransactionSummary> {
   const summary = {
     totalTransactions: transactions.length,
     totalAmount: 0,

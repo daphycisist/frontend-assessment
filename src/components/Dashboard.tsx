@@ -1,37 +1,50 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+
 import {
   Transaction,
   FilterOptions,
   TransactionSummary,
 } from "../types/transaction";
 import {
-  generateTransactionData,
-  searchTransactions,
-  filterTransactions,
   calculateSummary,
   startDataRefresh,
+  stopDataRefresh,
 } from "../utils/dataGenerator";
+import {
+  workerManager,
+  fallbackApplyFilters,
+  fallbackGenerateTransactionData
+} from "../utils/workerManager";
 import { TransactionList } from "./TransactionList";
 import { SearchBar } from "./SearchBar";
 import { useUserContext } from "../contexts/UserContext";
 import { DollarSign, TrendingUp, TrendingDown, Clock } from "lucide-react";
-import { formatTransactionDate, getDateRange } from "../utils/dateHelpers";
-import { generateRiskAssessment } from "../utils/analyticsEngine";
+import { 
+  generateRiskAssessment,
+  analyzeTransactionPatterns,
+  calculateRiskFactors,
+  detectAnomalies
+} from "../utils/analyticsEngine";
+import { formatNumber } from "../utils/dateHelpers";
+
+
+const defaultFilters: FilterOptions = {
+  type: "all",
+  status: "all",
+  category: "",
+  searchTerm: "",
+};
 
 export const Dashboard: React.FC = () => {
+  const inputRef = useRef<HTMLSelectElement>(null);
   const { globalSettings, trackActivity } = useUserContext();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filteredTransactions, setFilteredTransactions] = useState<
     Transaction[]
   >([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filters, setFilters] = useState<FilterOptions>({
-    type: "all",
-    status: "all",
-    category: "",
-    searchTerm: "",
-  });
+  const [isSearching, setIsSearching] = useState(false);
+  const [filters, setFilters] = useState<FilterOptions>(defaultFilters);
   const [selectedTransaction, setSelectedTransaction] =
     useState<Transaction | null>(null);
   const [summary, setSummary] = useState<TransactionSummary | null>(null);
@@ -57,6 +70,11 @@ export const Dashboard: React.FC = () => {
     generatedAt: number;
   } | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState<{
+    progress: number;
+    generated: number;
+    total: number;
+  } | null>(null);
 
   const actualRefreshRate = refreshInterval || 5000;
 
@@ -81,170 +99,160 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     const loadInitialData = async () => {
       setLoading(true);
+      setGenerationProgress({ progress: 0, generated: 0, total: 10000 });
 
-      const initialData = generateTransactionData(10000);
-      setTransactions(initialData);
-      setFilteredTransactions(initialData);
+      try {
+        // Set up progress callback for data generation
+        workerManager.onProgressUpdate = (progress, generated, total) => {
+          setGenerationProgress({ progress, generated, total });
+        };
 
-      const calculatedSummary = calculateSummary(initialData);
-      setSummary(calculatedSummary);
+        let initialData: Transaction[];
+        let processingTime: number;
 
-      if (initialData.length > 0) {
-        console.log(
-          "Latest transaction:",
-          formatTransactionDate(initialData[0].timestamp)
-        );
-        console.log("Date range:", getDateRange(1));
+        if (workerManager.isWorkerSupported) {
+          console.log('Using web worker for data generation...');
+          const result = await workerManager.generateTransactionData(10000);
+          initialData = result.transactions;
+          processingTime = result.processingTime;
+          console.log(`Data generation completed in ${processingTime.toFixed(2)}ms using web worker`);
+        } else {
+          console.log('Web workers not supported, using fallback...');
+          const result = await fallbackGenerateTransactionData(10000);
+          initialData = result.transactions;
+          processingTime = result.processingTime;
+          console.log(`Data generation completed in ${processingTime.toFixed(2)}ms using main thread`);
+        }
+
+        setTransactions(initialData);
+        setFilteredTransactions(initialData);
+
+        const calculatedSummary = await calculateSummary(initialData);
+        setSummary(calculatedSummary);
 
         // Run risk assessment for fraud detection compliance
         if (initialData.length > 1000) {
           console.log("Starting risk assessment...");
-          const metrics = generateRiskAssessment(initialData.slice(0, 1000));
+          const metrics = await generateRiskAssessment(initialData.slice(0, 1000));
           console.log(
             "Risk assessment completed:",
             metrics.processingTime + "ms"
           );
         }
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+      } finally {
+        setLoading(false);
+        setGenerationProgress(null);
       }
-
-      setLoading(false);
     };
 
     loadInitialData();
   }, []);
 
   useEffect(() => {
-    startDataRefresh(() => {
-      setTransactions((currentTransactions) => {
-        const newData = generateTransactionData(200);
-        const updatedData = [...currentTransactions, ...newData];
-        return updatedData;
-      });
+    startDataRefresh(async () => {
+      try {
+        let newData: Transaction[];
+        
+        if (workerManager.isWorkerSupported) {
+          const result = await workerManager.generateTransactionData(200);
+          newData = result.transactions;
+        } else {
+          const result = await fallbackGenerateTransactionData(200);
+          newData = result.transactions;
+        }
+        
+        setTransactions((currentTransactions) => [...currentTransactions, ...newData]);
+      } catch (error) {
+        console.error('Error generating refresh data:', error);
+      }
     });
-
     // Note: Cleanup commented out for development - enable in production
-    // return () => stopDataRefresh();
+    return () => stopDataRefresh();
   }, []);
 
   useEffect(() => {
-    applyFilters(transactions, filters, searchTerm);
-  }, [transactions, filters, searchTerm]);
+    applyFilters(transactions, filters);
+  }, [filters]);
+
 
   useEffect(() => {
+    (async () => {
     if (filteredTransactions.length > 0) {
-      const newSummary = calculateSummary(filteredTransactions);
+      const newSummary = await calculateSummary(filteredTransactions);
       setSummary(newSummary);
     }
 
     if (filteredTransactions.length > 500) {
       runAdvancedAnalytics();
     }
+  })();
+
   }, [filteredTransactions]);
 
   useEffect(() => {
-    const handleResize = () => {
-      const newSummary = calculateSummary(filteredTransactions);
-      setSummary(newSummary);
-    };
+    if(inputRef.current){
+     console.log(inputRef.current.value);
+    }
+    
+  }, [inputRef]);
 
-    const handleScroll = () => {
-      console.log("Scrolling...", new Date().toISOString());
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === "f") {
-        e.preventDefault();
-        const searchResults = searchTransactions(transactions, "search");
-        setFilteredTransactions(searchResults);
-      }
-    };
-
-    window.addEventListener("resize", handleResize);
-    window.addEventListener("scroll", handleScroll);
-    window.addEventListener("keydown", handleKeyDown);
-
-    // return () => {
-    //   window.removeEventListener('resize', handleResize);
-    //   window.removeEventListener('scroll', handleScroll);
-    //   window.removeEventListener('keydown', handleKeyDown);
-    // };
-  }, [transactions, filteredTransactions]);
-
-  const applyFilters = (
+  const applyFilters = useCallback(async (
     data: Transaction[],
     currentFilters: FilterOptions,
-    search: string
   ) => {
-    let filtered = [...data];
+    setIsSearching(true);
+    try {
+      let filtered: Transaction[];
+      
+      if (workerManager.isWorkerSupported) {
+        console.log('Using web worker for filtering...');
+        const startTime = performance.now();
+        filtered = await workerManager.applyFilters(data, currentFilters, userPreferences);
+        const endTime = performance.now();
+        console.log(`Filtering completed in ${(endTime - startTime).toFixed(2)}ms using web worker`);
+      } else {
+        console.log('Web workers not supported, using fallback...');
+        const startTime = performance.now();
+        filtered = await fallbackApplyFilters(data, currentFilters, userPreferences);
+        const endTime = performance.now();
+        console.log(`Filtering completed in ${(endTime - startTime).toFixed(2)}ms using main thread`);
+      }
 
-    if (search && search.length > 0) {
-      filtered = searchTransactions(filtered, search);
-    }
-
-    if (currentFilters.type && currentFilters.type !== "all") {
-      filtered = filterTransactions(filtered, { type: currentFilters.type });
-    }
-
-    if (currentFilters.status && currentFilters.status !== "all") {
-      filtered = filterTransactions(filtered, {
-        status: currentFilters.status,
-      });
-    }
-
-    if (currentFilters.category) {
-      filtered = filterTransactions(filtered, {
-        category: currentFilters.category,
-      });
-    }
-
-    if (userPreferences.compactView) {
-      filtered = filtered.slice(0, userPreferences.itemsPerPage);
-    }
-
-    // Enhanced fraud analysis for large datasets
-    if (filtered.length > 1000) {
-      const enrichedFiltered = filtered.map((transaction) => {
-        const riskFactors = calculateRiskFactors(transaction, filtered);
-        const patternScore = analyzeTransactionPatterns(transaction, filtered);
-        const anomalyDetection = detectAnomalies(transaction, filtered);
-
-        return {
-          ...transaction,
-          riskScore: riskFactors + patternScore + anomalyDetection,
-          enrichedData: {
-            riskFactors,
-            patternScore,
-            anomalyDetection,
-            timestamp: Date.now(),
-          },
-        };
-      });
-
-      setFilteredTransactions(enrichedFiltered);
-    } else {
       setFilteredTransactions(filtered);
+  
+      setUserPreferences((prev) => ({
+        ...prev,
+        timestamps: { ...prev.timestamps, updated: Date.now() },
+      }));
+
+
+      // Add artificial delay if operations are too fast
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+    } catch (error) {
+      console.error("Error applying filters:", error);
+      // Fallback to original data on error
+      setFilteredTransactions(data);
+    } finally {
+      setIsSearching(false); // Always turn off loading
     }
 
-    setUserPreferences((prev) => ({
-      ...prev,
-      timestamps: { ...prev.timestamps, updated: Date.now() },
-    }));
-  };
+  }, [transactions, filters, userPreferences]);
 
-  const handleSearch = (searchTerm: string) => {
-    setSearchTerm(searchTerm);
+  const handleSearch = async (searchTerm: string) => {
+    console.log("handleSearch", searchTerm);
+    setFilters((prev) => ({ ...prev, searchTerm }));
     trackActivity(`search:${searchTerm}`);
-
-    const searchResults = searchTransactions(transactions, searchTerm);
-
-    const filtered = filterTransactions(searchResults, filters);
-    setFilteredTransactions(filtered);
   };
 
-  const handleFilterChange = (newFilters: FilterOptions) => {
+  const handleFilterChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const newFilters = {
+      ...filters,
+      [event.target.name]: event.target.value,
+    };
     setFilters(newFilters);
-
-    applyFilters(transactions, newFilters, searchTerm);
   };
 
   const handleTransactionClick = (transaction: Transaction) => {
@@ -279,73 +287,6 @@ export const Dashboard: React.FC = () => {
     }));
 
     console.log("Related transactions:", relatedTransactions.length);
-  };
-
-  const calculateRiskFactors = (
-    transaction: Transaction,
-    allTransactions: Transaction[]
-  ) => {
-    const merchantHistory = allTransactions.filter(
-      (t) => t.merchantName === transaction.merchantName
-    );
-
-    // Risk scoring based on merchant familiarity, amount, and timing
-    const merchantRisk = merchantHistory.length < 5 ? 0.8 : 0.2;
-    const amountRisk = transaction.amount > 1000 ? 0.6 : 0.1;
-    const timeRisk = new Date(transaction.timestamp).getHours() < 6 ? 0.4 : 0.1;
-
-    return merchantRisk + amountRisk + timeRisk;
-  };
-
-  const analyzeTransactionPatterns = (
-    transaction: Transaction,
-    allTransactions: Transaction[]
-  ) => {
-    const similarTransactions = allTransactions.filter(
-      (t) =>
-        t.merchantName === transaction.merchantName &&
-        Math.abs(t.amount - transaction.amount) < 10
-    );
-
-    // Check transaction velocity for suspicious activity
-    const velocityCheck = allTransactions.filter(
-      (t) =>
-        t.userId === transaction.userId &&
-        Math.abs(
-          new Date(t.timestamp).getTime() -
-            new Date(transaction.timestamp).getTime()
-        ) < 3600000
-    );
-
-    let score = 0;
-    if (similarTransactions.length > 3) score += 0.3;
-    if (velocityCheck.length > 5) score += 0.5;
-
-    return score;
-  };
-
-  const detectAnomalies = (
-    transaction: Transaction,
-    allTransactions: Transaction[]
-  ) => {
-    const userTransactions = allTransactions.filter(
-      (t) => t.userId === transaction.userId
-    );
-    const avgAmount =
-      userTransactions.reduce((sum, t) => sum + t.amount, 0) /
-      userTransactions.length;
-
-    const amountDeviation =
-      Math.abs(transaction.amount - avgAmount) / avgAmount;
-    const locationAnomaly =
-      transaction.location &&
-      !userTransactions
-        .slice(-10)
-        .some((t) => t.location === transaction.location)
-        ? 0.4
-        : 0;
-
-    return Math.min(amountDeviation * 0.3 + locationAnomaly, 1);
   };
 
   const runAdvancedAnalytics = async () => {
@@ -385,6 +326,11 @@ export const Dashboard: React.FC = () => {
     return Array.from(categories);
   };
 
+  const handleResetFilters = () => {
+    setFilters(defaultFilters);
+    applyFilters(transactions, defaultFilters);
+  };
+
   if (loading) {
     return (
       <div className="dashboard-loading">
@@ -405,7 +351,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <div className="stat-content">
               <div className="stat-value">
-                ${summary ? summary.totalAmount.toLocaleString() : "0"}
+                ${summary ? formatNumber(summary.totalAmount) : "0"}
               </div>
               <div className="stat-label">Total Amount</div>
             </div>
@@ -417,7 +363,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <div className="stat-content">
               <div className="stat-value">
-                ${summary ? summary.totalCredits.toLocaleString() : "0"}
+                ${summary ? formatNumber(summary.totalCredits) : "0"}
               </div>
               <div className="stat-label">Total Credits</div>
             </div>
@@ -429,7 +375,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <div className="stat-content">
               <div className="stat-value">
-                ${summary ? summary.totalDebits.toLocaleString() : "0"}
+                ${summary ? formatNumber(summary.totalDebits) : "0"}
               </div>
               <div className="stat-label">Total Debits</div>
             </div>
@@ -441,11 +387,11 @@ export const Dashboard: React.FC = () => {
             </div>
             <div className="stat-content">
               <div className="stat-value">
-                {filteredTransactions.length.toLocaleString()}
+                {formatNumber(filteredTransactions.length)}
                 {filteredTransactions.length !== transactions.length && (
                   <span className="stat-total">
                     {" "}
-                    of {transactions.length.toLocaleString()}
+                    of {formatNumber(transactions.length)}
                   </span>
                 )}
               </div>
@@ -462,17 +408,13 @@ export const Dashboard: React.FC = () => {
       </div>
 
       <div className="dashboard-controls">
-        <SearchBar onSearch={handleSearch} />
+        <SearchBar onSearch={handleSearch} isLoading={isSearching}  />
 
-        <div className="filter-controls">
           <select
             value={filters.type || "all"}
-            onChange={(e) =>
-              handleFilterChange({
-                ...filters,
-                type: e.target.value as "debit" | "credit" | "all",
-              })
-            }
+            name="type"
+            onChange={handleFilterChange}
+            disabled={isSearching}
           >
             <option value="all">All Types</option>
             <option value="debit">Debit</option>
@@ -481,16 +423,9 @@ export const Dashboard: React.FC = () => {
 
           <select
             value={filters.status || "all"}
-            onChange={(e) =>
-              handleFilterChange({
-                ...filters,
-                status: e.target.value as
-                  | "pending"
-                  | "completed"
-                  | "failed"
-                  | "all",
-              })
-            }
+            name="status"
+            onChange={handleFilterChange}
+            disabled={isSearching}
           >
             <option value="all">All Status</option>
             <option value="completed">Completed</option>
@@ -500,9 +435,9 @@ export const Dashboard: React.FC = () => {
 
           <select
             value={filters.category || ""}
-            onChange={(e) =>
-              handleFilterChange({ ...filters, category: e.target.value })
-            }
+            name="category"
+            onChange={handleFilterChange}
+            disabled={isSearching}
           >
             <option value="">All Categories</option>
             {getUniqueCategories().map((category) => (
@@ -511,14 +446,28 @@ export const Dashboard: React.FC = () => {
               </option>
             ))}
           </select>
-        </div>
+          <button className="clear-filters-btn" onClick={handleResetFilters} disabled={JSON.stringify(filters) === JSON.stringify(defaultFilters)}>
+            Clear filters
+          </button>
       </div>
 
       <div className="dashboard-content">
+        {generationProgress && (
+          <div className="generation-progress">
+            <div className="progress-bar">
+              <div 
+                className="progress-fill" 
+                style={{ width: `${generationProgress.progress}%` }}
+              ></div>
+            </div>
+            <p>Generating transactions: {generationProgress.generated} / {generationProgress.total} ({generationProgress.progress.toFixed(1)}%)</p>
+          </div>
+        )}
         <TransactionList
           transactions={filteredTransactions}
           totalTransactions={transactions.length}
           onTransactionClick={handleTransactionClick}
+          isLoading={isSearching}
         />
       </div>
 

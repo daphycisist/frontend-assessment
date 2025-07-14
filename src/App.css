@@ -52,6 +52,9 @@ body {
   display: flex;
   align-items: center;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  min-width: 0;
 }
 
 .stat-card:hover {
@@ -62,7 +65,7 @@ body {
 .stat-icon {
   background: #e3f2fd;
   border-radius: 50%;
-  width: 48px;
+  min-width: 48px;
   height: 48px;
   display: flex;
   align-items: center;
@@ -73,6 +76,9 @@ body {
 
 .stat-content {
   flex: 1;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  min-width: 0;
 }
 
 .stat-value {
@@ -94,33 +100,39 @@ body {
   padding: 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   margin-bottom: 30px;
-}
-
-.filter-controls {
   display: flex;
+  align-items: center;
   gap: 16px;
-  margin-top: 20px;
   flex-wrap: wrap;
-}
+  width: 100%;
+  select {
+    padding: 8px 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+    flex: 1;
 
-.filter-controls select {
-  padding: 8px 12px;
-  border: 2px solid #e0e0e0;
-  border-radius: 6px;
-  font-size: 14px;
-  background: white;
-  cursor: pointer;
-  transition: border-color 0.2s ease;
-}
+    &:hover {
+      border-color: #2196f3;
+    }
 
-.filter-controls select:hover {
-  border-color: #2196f3;
-}
+    &:focus {
+      outline: none;
+      border-color: #2196f3;
+      box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+    }
+    
+  }
 
-.filter-controls select:focus {
-  outline: none;
-  border-color: #2196f3;
-  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+  button{
+    &:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+  }
 }
 
 /* Search Bar Styles */
@@ -134,18 +146,29 @@ body {
   position: relative;
   display: flex;
   align-items: center;
+
 }
 
-.search-icon {
-  position: absolute;
-  left: 12px;
+.search-btn {
   color: #666;
+  position: absolute;
+  left: 1.5px;
+  height: 91%;
   z-index: 1;
+  border-radius: 7px;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.search-btn.active {
+  background-color: #2196f3;
+  color: white;
 }
 
 .search-input {
+  position: relative;
   width: 100%;
-  padding: 12px 44px 12px 44px;
+  padding: 12px 44px 12px 80px;
   border: 2px solid #e0e0e0;
   border-radius: 8px;
   font-size: 16px;
@@ -459,6 +482,90 @@ body {
   background: #1976d2;
 }
 
+.empty-transaction-message {
+  text-align: center;
+  margin-top: 20px;
+  color: #666;
+  padding: 20px;
+  background-color: #f5f5f5;
+}
+
+/* Skeleton Loader Styles */
+.skeleton-item {
+  pointer-events: none;
+  user-select: none;
+}
+
+.skeleton-line {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 4px;
+  height: 16px;
+  margin: 4px 0;
+}
+
+.skeleton-merchant-name {
+  width: 60%;
+  height: 18px;
+  margin-bottom: 6px;
+}
+
+.skeleton-category {
+  width: 40%;
+  height: 14px;
+}
+
+.skeleton-amount {
+  width: 80px;
+  height: 20px;
+  margin-left: auto;
+}
+
+.skeleton-description {
+  width: 85%;
+  height: 16px;
+  margin: 8px 0;
+}
+
+.skeleton-date {
+  width: 120px;
+  height: 14px;
+  display: inline-block;
+  margin-right: 12px;
+}
+
+.skeleton-status {
+  width: 80px;
+  height: 14px;
+  display: inline-block;
+  margin-right: 12px;
+}
+
+.skeleton-location {
+  width: 100px;
+  height: 14px;
+  display: inline-block;
+}
+
+.clear-filters-btn{
+  background-color: transparent;
+  color: #2196f3;
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .dashboard {
@@ -497,5 +604,17 @@ body {
   .transaction-meta {
     flex-direction: column;
     align-items: flex-start;
+  }
+  .dashboard-controls {
+    flex-direction: column;
+    gap: 16px;
+
+    select {
+      width: 100%;
+    }
+
+    .search-bar{
+      max-width: 100%;
+    }
   }
 }

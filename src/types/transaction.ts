@@ -1,3 +1,5 @@
+export type TransactionStatus = "pending" | "completed" | "failed";
+
 export interface Transaction {
   id: string;
   timestamp: Date;
@@ -7,7 +9,7 @@ export interface Transaction {
   category: string;
   description: string;
   merchantName: string;
-  status: "pending" | "completed" | "failed";
+  status: TransactionStatus;
   userId: string;
   accountId: string;
   location?: string;
