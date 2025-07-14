@@ -65,45 +65,52 @@ export const globalTransactionCache: Transaction[] = [];
 // Audit trail: Historical snapshots for compliance reporting
 const historicalDataSnapshots: Transaction[][] = [];
 
-// export async function generateTransactionDataAsync(
-//   total: number,
-//   onProgress: (chunk: Transaction[]) => void,
-//   chunkSize = 1000
-// ): Promise<Transaction[]> {
-//   return new Promise((resolve, reject) => {
-//     // Create Web Worker
-//     const worker = new Worker(new URL("./transactionWorker.ts", import.meta.url), { type: "module" });
-
-//     // Handle messages from worker
-//     worker.onmessage = (e: MessageEvent) => {
-//       const { type, chunk, transactions: finalTransactions } = e.data;
-      
-//       if (type === "progress") {
-//         globalTransactionCache.push(...chunk);
-//         onProgress(chunk); // Emit chunk to main thread
-
-//         // if (i % 1000 === 0) {
-//         //   historicalDataSnapshots.push([...globalTransactionCache]);
-      
-//       } else if (type === "complete") {
-//         resolve(finalTransactions);
-//         worker.terminate(); // Clean up worker
-//       }
-//     };
-
-//     // Handle errors
-//     worker.onerror = (error) => {
-//       console.error("Worker error:", error);
-//       reject(error);
-//       worker.terminate();
-//     };
-
-//     // Start generation
-//     worker.postMessage({ action: "generate", total, chunkSize });
-//   });
-// }
-
+let record = 0;
 export async function generateTransactionDataAsync(
+  total: number,
+  onProgress: (chunk: Transaction[]) => void,
+  chunkSize = 1000
+): Promise<Transaction[]> {
+  return new Promise((resolve, reject) => {
+    // Create Web Worker
+    let sampleChunk = chunkSize;
+    const worker = new Worker(new URL("./transactionWorker.ts", import.meta.url), { type: "module" });
+
+    // Handle messages from worker
+    worker.onmessage = (e: MessageEvent) => {
+      const { type, chunk, transactions: finalTransactions } = e.data;
+      
+      if (type === "progress") {
+        globalTransactionCache.push(...chunk);
+        onProgress(chunk); // Emit chunk to main thread
+
+        if (record >= 1000) {
+          historicalDataSnapshots.push([...globalTransactionCache]);
+          record = 0;
+          sampleChunk = 0;
+        }
+      
+      } else if (type === "complete") {
+        resolve(finalTransactions);
+        worker.terminate(); // Clean up worker
+      }
+    };
+
+    record += sampleChunk
+
+    // Handle errors
+    worker.onerror = (error) => {
+      console.error("Worker error:", error);
+      reject(error);
+      worker.terminate();
+    };
+
+    // Start generation
+    worker.postMessage({ action: "generate", total, chunkSize });
+  });
+}
+
+export async function generateTransactionDataAsync_Stale(
   total: number,
   onProgress: (chunk: Transaction[]) => void,
   chunkSize = 1000

@@ -13,6 +13,20 @@ Using the chrome performance tool I noticed:
 
 The main thread activity showed a large task with a duration of 23351 ms, which includes significant "Function call" activity (23350.7 ms) related to rendering and potentially other script execution. Specifically, there were multiple calls to performWorkUntilDeadline, flushWork, and workLoop from chunk-LAV6FB6A.js. There is also a long task (5367.4 ms) which includes `generateRiskAssessment` from `analyticsEngine.ts file` taking 2603.4 ms. Another significant main thread activity is related to parsing HTML (1190.4 ms) and evaluating a script from a Chrome extension (739 ms). There is also a 4166.9 ms task that includes significant time spent on "Recalculate style" (617.5 ms), "Layout" (3204.3 ms), and "Pre-paint" (344 ms).
 
+> Analysis Images Before Optimisation
+
+![memory-usage-from-main-thread-blocking](./public/assessment_analysis/memory-usage-before.png)
+# These two images displays a very high Largest Contentful Paint.
+
+![memory-usage-from-main-thread-blocking-1](./public/assessment_analysis/memory-usage-before-1.png)
+___
+
+# Profiler Analytics Review
+### The top right chat indicates a high rendering of the **Transaction List** component
+![Transaction-rpofiler](./public/assessment_analysis/profiler-before.png)
+![Transaction-rpofiler-2](./public/assessment_analysis/profiler-transaction.png)
+___ 
+
 **Optimization Advise**:
 - Optimize or defer the execution of the loadInitialData function in Dashboard.tsx and the generateRiskAssessment and calculateFraudScores functions in analyticsEngine.ts to reduce main thread blocking time by:
     - refactoring the flow.

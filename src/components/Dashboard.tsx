@@ -35,6 +35,7 @@ export const Dashboard: React.FC = () => {
   const { globalSettings, trackActivity } = useUserContext() as UserContextType;
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
+  const [transactionRecord, setTransactionRecord] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<FilterOptions>({
     type: "all",
@@ -108,22 +109,17 @@ export const Dashboard: React.FC = () => {
       setLoading(true);
 
       await generateTransactionDataAsync(
-      10_000,
+      100_000,
       (chunk: Transaction[]) => {
           if (initialData?.length < 1000) initialData.push(...chunk);
-          setTransactions((prev) => [...prev, ...chunk]);
-          setFilteredTransactions((prev) => [...prev, ...chunk]);
+          // setTransactions((prev) => [...prev, ...chunk]);
+          // setFilteredTransactions((prev) => [...prev, ...chunk]);
+          console.log('run')
+          setTransactionRecord((prev) => [...prev, ...chunk]);
         },
         100
       );
-      // initialData = globalTransactionCache?.slice(0, 1000);
 
-      // setTransactions(globalTransactionCache);
-      // setFilteredTransactions(globalTransactionCache);
-      // setTransactions((prev) => [...prev, ...chunk]);
-      // setFilteredTransactions((prev) => [...prev, ...chunk]);
-      // updateSummary(chunk);
-      // }
       if (initialData.length > 1000) {
         console.log("Starting risk assessment...");
         const metrics = generateRiskAssessment(initialData.slice(0, 1000));
@@ -144,13 +140,29 @@ export const Dashboard: React.FC = () => {
       setSummary({} as TransactionSummary);
       // if (worker) worker.terminate();
     };
-  }, [updateSummary, throttle]);
+  }, [throttle]);
 
+  // useEffect(() => {
+  // }, [filteredTransactions, updateSummary])
+  
   useEffect(() => {
-    if (filteredTransactions?.length) {
-      updateSummary(filteredTransactions);
+    const [MinRecord, MaxRecord] = [1000, 2000];
+    if (transactionRecord?.length) {
+      updateSummary(transactionRecord);
     }
-  }, [filteredTransactions, updateSummary])
+
+    if (transactionRecord?.length >= MinRecord && transactionRecord?.length <= MaxRecord) {
+      if (transactionRecord?.length <= MaxRecord && !transactions?.length) {
+        console.log('fill up once')
+        setFilteredTransactions(transactionRecord)
+        setTransactions(transactionRecord);
+      } else {
+        console.log('delete')
+        setTransactionRecord((prev) => prev?.splice(0, MaxRecord))
+      }
+    }
+
+  }, [transactionRecord, updateSummary, transactions])
 
   // Auto-refresh with capped transactions
   useEffect(() => {
@@ -289,9 +301,9 @@ export const Dashboard: React.FC = () => {
                   </div>
                   <div className="stat-content">
                     <div className="stat-value">
-                      {filteredTransactions?.length.toLocaleString()}
-                      {filteredTransactions.length !== transactions.length && (
-                        <span className="stat-total"> of {transactions.length.toLocaleString()}</span>
+                      {transactionRecord?.length.toLocaleString()}
+                      {filteredTransactions.length !== transactionRecord.length && (
+                        <span className="stat-total"> of {transactionRecord.length.toLocaleString()}</span>
                       )}
                     </div>
                     <div className="stat-label" id="transaction-count-label">

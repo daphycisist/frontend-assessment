@@ -48,18 +48,6 @@ export const TransactionList: React.FC<TransactionListProps> = ({
     };
   }, []);
 
-  // // Format transactions
-  // const formatTransaction = useCallback(
-  //   (t: Transaction) => ({
-  //     ...t,
-  //     formattedAmount: new Intl.NumberFormat("en-US", {
-  //       style: "currency",
-  //       currency: "USD",
-  //     }).format(t.amount),
-  //   }),
-  //   []
-  // );
-
   // Memoized paginated data
   const paginatedData = useMemo(() => {
     const itemsPerPage = userPreferences.itemsPerPage;

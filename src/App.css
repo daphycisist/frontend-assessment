@@ -37,7 +37,7 @@ body {
 }
 
 .error-boundary p {
-  color: #333;
+  color: #c7c7c7;
   margin-bottom: 20px;
 }
 
@@ -174,8 +174,8 @@ body {
 }
 
 .stat-value {
-  font-size: 1.75rem;
-  font-weight: 700;
+  font-size: 1.65rem;
+  font-weight: 600;
   color: #faf4f4;
   line-height: 1.2;
   opacity: 1;
