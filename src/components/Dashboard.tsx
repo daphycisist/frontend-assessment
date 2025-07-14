@@ -221,7 +221,11 @@ export const Dashboard: React.FC = () => {
     trackActivity(`search:${searchTerm}`);
   };
 
-  const handleFilterChange = (newFilters: FilterOptions) => {
+  const handleFilterChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const newFilters = {
+      ...filters,
+      [event.target.name]: event.target.value,
+    };
     setFilters(newFilters);
   };
 
@@ -382,12 +386,8 @@ export const Dashboard: React.FC = () => {
 
           <select
             value={filters.type || "all"}
-            onChange={(e) =>
-              handleFilterChange({
-                ...filters,
-                type: e.target.value as "debit" | "credit" | "all",
-              })
-            }
+            name="type"
+            onChange={handleFilterChange}
           >
             <option value="all">All Types</option>
             <option value="debit">Debit</option>
@@ -396,16 +396,8 @@ export const Dashboard: React.FC = () => {
 
           <select
             value={filters.status || "all"}
-            onChange={(e) =>
-              handleFilterChange({
-                ...filters,
-                status: e.target.value as
-                  | "pending"
-                  | "completed"
-                  | "failed"
-                  | "all",
-              })
-            }
+            name="status"
+            onChange={handleFilterChange}
           >
             <option value="all">All Status</option>
             <option value="completed">Completed</option>
@@ -415,9 +407,8 @@ export const Dashboard: React.FC = () => {
 
           <select
             value={filters.category || ""}
-            onChange={(e) =>
-              handleFilterChange({ ...filters, category: e.target.value })
-            }
+            name="category"
+            onChange={handleFilterChange}
           >
             <option value="">All Categories</option>
             {getUniqueCategories().map((category) => (
