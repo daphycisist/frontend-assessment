@@ -30,6 +30,7 @@ import { PageLoader } from "../ui/PageLoader";
 import { TransactionFilters } from "./TransactionFilters";
 import { TransactionList } from "./TransactionList";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { DashboardNav } from "./DashboardNav";
 
 export const Dashboard: React.FC = () => {
   const { globalSettings, trackActivity } = useUserContext() as UserContextType;
@@ -246,56 +247,63 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="dashboard">
-      <div className="dashboard-header">
-        <h1>FinTech Dashboard</h1>
-        <div className="dashboard-stats">
-          <ViewCard Icon={DollarSign} value={summary?.totalAmount} name="Total Amount" />
-          <ViewCard Icon={TrendingUp} value={summary?.totalCredits} name="Total Credits" />
-          <ViewCard Icon={TrendingDown} value={summary?.totalDebits} name="Total Debits" />
-          <div className="stat-card">
-            <div className="stat-icon">
-              <Clock size={24} />
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">
-                {filteredTransactions?.length.toLocaleString()}
-                {filteredTransactions.length !== transactions.length && (
-                  <span className="stat-total"> of {transactions.length.toLocaleString()}</span>
-                )}
+      
+      <DashboardNav />
+      
+      <section className="dashboard-wrapper">
+        <div className="dashboard-header">
+          <div className="dashboard-stats">
+            <ViewCard Icon={DollarSign} value={summary?.totalAmount} name="Total Amount" />
+            <ViewCard Icon={TrendingUp} value={summary?.totalCredits} name="Total Credits" />
+            <ViewCard Icon={TrendingDown} value={summary?.totalDebits} name="Total Debits" />
+            <div className="stat-card">
+              <div className="stat-icon">
+                <Clock size={24} />
               </div>
-              <div className="stat-label">
-                Transactions
-                {isAnalyzing && <span> (Analyzing...)</span>}
-                {riskAnalytics && <span> - Risk: {riskAnalytics.highRiskTransactions}</span>}
+              <div className="stat-content">
+                <div className="stat-value">
+                  {filteredTransactions?.length.toLocaleString()}
+                  {filteredTransactions.length !== transactions.length && (
+                    <span className="stat-total"> of {transactions.length.toLocaleString()}</span>
+                  )}
+                </div>
+                <div className="stat-label">
+                  Transactions
+                  {isAnalyzing && <span> (Analyzing...)</span>}
+                  {riskAnalytics && <span> - Risk: {riskAnalytics.highRiskTransactions}</span>}
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="dashboard-controls">
-        <SearchBar onSearch={handleSearch} />
-        <TransactionFilters filters={filters} setFilters={setFilters} transactions={transactions} />
-      </div>
+        <div className="dashboard-controls">
+          <ErrorBoundary>
+            <SearchBar onSearch={handleSearch} />
+          </ErrorBoundary>
 
-      <div className="dashboard-content">
-        <ErrorBoundary>
-          <TransactionList
-            transactions={filteredTransactions}
-            totalTransactions={transactions.length}
-            onTransactionClick={handleTransactionClick}
-            userPreferences={userPreferences}
-            // fetchMoreData={fetchMoreData}
+          <TransactionFilters filters={filters} setFilters={setFilters} transactions={transactions} />
+        </div>
+
+        <div className="dashboard-content">
+          <ErrorBoundary>
+            <TransactionList
+              transactions={filteredTransactions}
+              totalTransactions={transactions.length}
+              onTransactionClick={handleTransactionClick}
+              userPreferences={userPreferences}
+              // fetchMoreData={fetchMoreData}
+            />
+          </ErrorBoundary>
+        </div>
+
+        {selectedTransaction && (
+          <TransactionView
+            selectedTransaction={selectedTransaction}
+            setSelectedTransaction={setSelectedTransaction}
           />
-        </ErrorBoundary>
-      </div>
-
-      {selectedTransaction && (
-        <TransactionView
-          selectedTransaction={selectedTransaction}
-          setSelectedTransaction={setSelectedTransaction}
-        />
-      )}
+        )}
+      </section>
     </div>
   );
 };
