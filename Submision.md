@@ -1,6 +1,6 @@
 # FinTech Dashboard - Frontend Assessment Submission
 
-This project is a FinTech dashboard designed to handle large transaction datasets efficiently, with a focus on performance optimization, accessibility, and user experience. The dashboard includes a `SearchBar` component for filtering transactions, a `TransactionList` for displaying paginated results, and a `DashboardNav` for navigation. The application is built with React, TypeScript, and optimized for handling 100K+ transactions while meeting performance targets: <1s load time, <100ms search response, <100MB memory usage, and 60fps scrolling.
+This project is a FinTech dashboard UI assessment to handle large transaction datasets efficiently, with a focus on performance optimization, accessibility, and user experience. The dashboard includes a `SearchBar` component for filtering transactions, a `TransactionList` for displaying paginated results, and a `DashboardNav` for navigation. The application is built with React, TypeScript, and optimized for handling 100K+ transactions while meeting performance targets: <1s load time, <100ms search response, <100MB memory usage, and 60fps scrolling.
 
 ## Table of Contents
 
