@@ -3,7 +3,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Transaction, UserPreferences } from "../types/transaction";
 import { TransactionItem } from "./TransactionItems";
+import { formatTransactionCount } from "../utils/helper";
 // import { FixedSizeList as List } from "react-window";
+// import { Virtuoso } from 'react-virtuoso';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -122,7 +124,7 @@ const TransactionList: React.FC<TransactionListProps> = ({
       <div className="transaction-list-header">
         <div className="transaction-list-pagination-wrapper">
           <h2 id="transaction-list-title">
-            Transactions ({totalTransactions || paginatedData.length})
+            Transactions ({formatTransactionCount(totalTransactions || paginatedData.length)})
           </h2>
           <div className="transaction-list-pagination">
             {[...Array(totalPages).keys()].slice(pagination, pagination + 5).map((page) => (
@@ -153,16 +155,22 @@ const TransactionList: React.FC<TransactionListProps> = ({
           tabIndex={0}
         >
           {paginatedData?.map((transaction, index) => (
-            <MemoizedTransactionItem
-              key={transaction.id}
-              transaction={transaction}
-              isSelected={selectedItems[transaction.id]}
-              isHovered={hoveredItem === transaction.id}
-              onClick={() => handleItemClick(transaction)}
-              onMouseEnter={() => handleMouseEnter(transaction.id)}
-              onMouseLeave={handleMouseLeave}
-              rowIndex={index}
-            />
+            // {/* <Virtuoso 
+            // style={{ height: 400 }}
+            // data={paginatedData}
+            // itemContent={(index, transaction) => ( */}
+              <MemoizedTransactionItem
+                key={transaction.id}
+                transaction={transaction}
+                isSelected={selectedItems[transaction.id]}
+                isHovered={hoveredItem === transaction.id}
+                onClick={() => handleItemClick(transaction)}
+                onMouseEnter={() => handleMouseEnter(transaction.id)}
+                onMouseLeave={handleMouseLeave}
+                rowIndex={index}
+              />
+            // )}
+            // />
           ))}
   
           {/* <div ref={observerRef as React.LegacyRef<HTMLDivElement>}></div> */}

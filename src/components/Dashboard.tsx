@@ -34,13 +34,14 @@ import { DashboardNav } from "./DashboardNav";
 import { generateTransactionData } from "../utils/worker";
 import { Loader } from "../ui/Loader";
 import { LoadingTransaction } from "../ui/LoadingTransaction";
-import localstorage from "../utils/localstorage";
+import { formatTransactionCount } from "../utils/helper";
+// import localstorage from "../utils/localstorage";
 
 const TransactionView = lazy(() => import('./TransactionView'));
 const TransactionList = lazy(() => import('./TransactionList'));
 
-const INITIAL_BATCH = 250;
-const BACKGROUND_BATCH = 1000;
+const INITIAL_BATCH = 1_000;
+const BACKGROUND_BATCH = 100_000;
 
 export const Dashboard: React.FC = () => {
   const { globalSettings, trackActivity } = useUserContext() as UserContextType;
@@ -118,10 +119,9 @@ export const Dashboard: React.FC = () => {
 
   // Load initial data with Web Worker
   useEffect(() => {
-    localstorage.clear()
     let isMounted = true;
+  
     const loadInitialData = async () => {
-      const initialData: Transaction[] = [];
       setLoading(true);
 
       generateTransactionData({
@@ -129,15 +129,15 @@ export const Dashboard: React.FC = () => {
         chunkSize: 250,
         signal: abortController.current.signal,
         onChunk: (chunk) => {
+          if (!isMounted) return;
           startTransition(() => {
             setTransactions((prev) => [...prev, ...chunk]);
-          });
-          startTransition(() => {
             setFilteredTransactions((prev) => ([...prev, ...chunk]))
           });
         },
         onProgress: (p) => setProgress(p * 0.01),
         onDone: () => {
+          if (!isMounted) return;
           setLoading(false);
 
           // Step 2: Load the remaining transactions in the background
@@ -146,47 +146,50 @@ export const Dashboard: React.FC = () => {
             chunkSize: 500,
             signal: abortController.current.signal,
             onChunk: (chunk) => {
+              if (!isMounted) return;
               startTransition(() => {
                 setTransactions((prev) => [...prev, ...chunk]);
-              });
-              startTransition(() => {
                 setFilteredTransactions((prev) => ([...prev, ...chunk]))
               });
             },
             onProgress: (p) =>
               setProgress((prev) => prev + (p * (99 / 100))),
-            onDone: () => console.log("All transactions loaded."),
+            onDone: () => {
+              if (!isMounted) return;
+              
+              console.log("All transactions loaded.")
+
+              if (transactions.length > 1000) {
+                console.log("Starting risk assessment...");
+                const metrics = generateRiskAssessment(transactions.slice(0, 1000));
+                console.log("Risk assessment completed:", metrics.processingTime + "ms");
+              }
+            },
           });
         },
       });
-
-      if (initialData.length > 1000) {
-        console.log("Starting risk assessment...");
-        const metrics = generateRiskAssessment(initialData.slice(0, 1000));
-        console.log(
-          "Risk assessment completed:",
-          metrics.processingTime + "ms"
-        );
-      }
-
-      setLoading(false);
     };
-
+    
     if (isMounted) loadInitialData();
     return () => {
       isMounted = false;
-      setTransactions([]);
-      setFilteredTransactions([]);
       abortController.current.abort();
-      // if (worker) worker.terminate();
+      startTransition(() => {
+        setTransactions([]);
+        setFilteredTransactions([]);
+        setProgress(0);
+        setLoading(false);
+      });
     };
   }, []);
 
   useEffect(() => {
+    if (loading) return;
+
     const id = startDataRefresh(() => {
       generateTransactionData({
-        total: INITIAL_BATCH,
-        chunkSize: 50,
+        total: 200,
+        chunkSize: 100,
         signal: abortController.current.signal,
         onChunk: (chunk) => {
           startTransition(() => {
@@ -201,7 +204,7 @@ export const Dashboard: React.FC = () => {
 
     // Note: Cleanup commented out for development - enable in production
     return () => stopDataRefresh(id);
-  }, []);
+  }, [loading]);
 
   useEffect(() => {
     if (filteredTransactions?.length > 0) {
@@ -254,6 +257,7 @@ export const Dashboard: React.FC = () => {
 
   // Apply filters when transactions or filters change
   useEffect(() => {
+    console.log(filters)
     applyFilters(transactions, filters, filters?.searchTerm ?? '');
   }, [transactions, filters, applyFilters]);
 
@@ -312,7 +316,7 @@ export const Dashboard: React.FC = () => {
                     <div className="stat-value">
                       {filteredTransactions?.length.toLocaleString()}
                       {filteredTransactions.length !== transactions.length && (
-                        <span className="stat-total"> of {transactions?.length.toLocaleString()}</span>
+                        <span className="stat-total"> of {formatTransactionCount(transactions?.length)}</span>
                       )}
                     </div>
 

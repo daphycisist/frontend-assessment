@@ -56,8 +56,12 @@ Initial performance profiling using Chrome DevTools revealed:
   - Screenshots: 
     - ![Memory Usage Before](./public/assessment_analysis/memory-usage-before.png)
     - ![Memory Usage Before 1](./public/assessment_analysis/memory-usage-before-1.png)
-    - ![Transaction Profiler](./public/assessment_analysis/profiler-before.png)
     - ![Transaction Profiler 2](./public/assessment_analysis/profiler-transaction.png)
+
+<!-- - **Chrome Lighthouse Insights**:
+    - Application performance, covering `Accessiblity`, `SEO`, `Best Practices` and `Performance` was tested using **Chrome Lighthouse tool**
+    - Screenshot:
+    - ![Transaction Profiler 2](./public/assessment_analysis/lighthouse-before.png) -->
 
 ### Optimization Strategies
 To meet performance targets (<1s load, <100ms search, <100MB memory, 60fps scrolling), the following optimizations were applied:
@@ -72,6 +76,15 @@ To meet performance targets (<1s load, <100ms search, <100MB memory, 60fps scrol
    - Removed O(n²) `analyzeSearchPatterns` to fix memory issues.
    - Added 300ms debouncing to `onSearch` to meet <100ms search target.
 
+---
+> Chrome extension script evaluation added.
+- **Profiler Insights**:
+  - The `TransactionList` component caused high rendering costs due to rendering 10,000+ transactions at once.
+  - Screenshots: 
+    - ![Memory Usage Before](./public/assessment_analysis/memory-usage-after.png)
+    - ![Memory Usage Before 1](./public/assessment_analysis/profiler-after.png)
+---
+
 **Challenges**:
 - **Caching**: LocalStorage serialization/deserialization was too slow for large datasets.
 - **Asynchronous Methods**: Effective for <15K transactions but failed under heavy load (>30K).
@@ -83,47 +96,66 @@ To meet performance targets (<1s load, <100ms search, <100MB memory, 60fps scrol
 useEffect(() => {
   let isMounted = true;
   const abortController = new AbortController();
+  const throttledSetProgress = throttle((p: number) => {
+    startTransition(() => {
+      setProgress(p);
+    });
+  }, 100);
 
   const loadInitialData = async () => {
     setLoading(true);
-
     generateTransactionData({
       total: INITIAL_BATCH,
       chunkSize: 250,
       signal: abortController.signal,
       onChunk: (chunk) => {
+        if (!isMounted) return;
         startTransition(() => {
           setTransactions((prev) => [...prev, ...chunk]);
           setFilteredTransactions((prev) => [...prev, ...chunk]);
         });
       },
-      onProgress: (p) => setProgress(p * 0.01),
+      onProgress: (p) => throttledSetProgress(p * 0.01),
       onDone: () => {
+        if (!isMounted) return;
         setLoading(false);
         generateTransactionData({
           total: BACKGROUND_BATCH - INITIAL_BATCH,
           chunkSize: 500,
           signal: abortController.signal,
           onChunk: (chunk) => {
+            if (!isMounted) return;
             startTransition(() => {
               setTransactions((prev) => [...prev, ...chunk]);
               setFilteredTransactions((prev) => [...prev, ...chunk]);
             });
           },
-          onProgress: (p) => setProgress((prev) => prev + (p * 0.99)),
-          onDone: () => console.log("All transactions loaded."),
+          onProgress: (p) => throttledSetProgress(prev => prev + (p * 0.99)),
+          onDone: () => {
+            if (!isMounted) return;
+            console.log("All transactions loaded.");
+            if (transactions.length > 1000) {
+              console.log("Starting risk assessment...");
+              const metrics = generateRiskAssessment(transactions.slice(0, 1000));
+              console.log("Risk assessment completed:", metrics.processingTime + "ms");
+            }
+          },
         });
       },
     });
-
-    setLoading(false);
   };
 
   if (isMounted) loadInitialData();
-
   return () => {
     isMounted = false;
     abortController.abort();
+    throttledSetProgress.cancel();
+    startTransition(() => {
+      setTransactions([]);
+      setFilteredTransactions([]);
+      setProgress(0);
+      setLoading(false);
+    });
   };
 }, []);
 ```

@@ -37,7 +37,7 @@ self.onmessage = function (e) {
 
     self.postMessage({ type: 'chunk', data: chunk, progress: (generated / total) * 100 });
 
-    setTimeout(generateChunk, 100);
+    setTimeout(generateChunk, 0);
   }
 
   generateChunk();
