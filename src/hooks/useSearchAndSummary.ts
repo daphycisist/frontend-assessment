@@ -20,8 +20,9 @@ export const useSearchAndSummary = (
         if (!term) return;
         const searched = searchTransactions(transactions, term);
         const filtered = filterTransactions(searched, filters);
-        setFilteredTransactions(filtered);
         setSummary(calculateSummary(filtered));
+        if (!filtered?.length) throw new Error(`No search result found for [${term.split('').join(', ')}]`)
+        setFilteredTransactions(filtered);
       },
       300,
       { leading: false, trailing: true }

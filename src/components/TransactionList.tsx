@@ -120,7 +120,7 @@ const TransactionList: React.FC<TransactionListProps> = ({
   );
 
   return (
-    <div className="transaction-list" role="region" aria-label="Transaction list">
+    <div className="transaction-list" role="region" aria-label="Transaction list" data-testid="transaction-list">
       <div className="transaction-list-header">
         <div className="transaction-list-pagination-wrapper">
           <h2 id="transaction-list-title">

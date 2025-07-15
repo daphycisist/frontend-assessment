@@ -12,12 +12,6 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = (
   }: TransactionFiltersProps
 ) => {
 
-  /** 
-   * Prevent Redundant Filtering
-    Avoid running applyFilters twice from both handleFilterChange and useEffect — make sure handleFilterChange sets state only, and let useEffect react.
-
-    Avoids duplication of filtering logic.
-    */
   const handleFilterChange = (newFilters: FilterOptions) => {
     setFilters(newFilters);
   };
@@ -29,7 +23,7 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = (
   };
 
   return (
-    <div className="filter-controls">
+    <div className="filter-controls" data-testid="transaction-filters">
       <select
         value={filters.type || "all"}
         onChange={(e) =>

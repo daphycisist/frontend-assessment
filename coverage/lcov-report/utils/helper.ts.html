@@ -3,7 +3,7 @@
 <html lang="en">
 
 <head>
-    <title>Code coverage report for components/ViewCard.tsx</title>
+    <title>Code coverage report for utils/helper.ts</title>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="../prettify.css" />
     <link rel="stylesheet" href="../base.css" />
@@ -19,20 +19,20 @@
 <body>
 <div class='wrapper'>
     <div class='pad1'>
-        <h1><a href="../index.html">All files</a> / <a href="index.html">components</a> ViewCard.tsx</h1>
+        <h1><a href="../index.html">All files</a> / <a href="index.html">utils</a> helper.ts</h1>
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">75% </span>
+                <span class="strong">6.25% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>3/4</span>
+                <span class='fraction'>1/16</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/2</span>
+                <span class='fraction'>0/20</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">66.66% </span>
+                <span class="strong">6.66% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>2/3</span>
+                <span class='fraction'>1/15</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line medium'></div>
+    <div class='status-line low'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -82,61 +82,43 @@
 <a name='L17'></a><a href='#L17'>17</a>
 <a name='L18'></a><a href='#L18'>18</a>
 <a name='L19'></a><a href='#L19'>19</a>
-<a name='L20'></a><a href='#L20'>20</a>
-<a name='L21'></a><a href='#L21'>21</a>
-<a name='L22'></a><a href='#L22'>22</a>
-<a name='L23'></a><a href='#L23'>23</a>
-<a name='L24'></a><a href='#L24'>24</a>
-<a name='L25'></a><a href='#L25'>25</a>
-<a name='L26'></a><a href='#L26'>26</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L20'></a><a href='#L20'>20</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import * as React from 'react';
-import { LucideIcon } from 'lucide-react';
-&nbsp;
-type ViewCardProps = {
-  Icon: LucideIcon;
-  value?: number;
-  name: string;
-  ariaLabel: string;
-}
-&nbsp;
-export const ViewCard: React.FC&lt;ViewCardProps&gt; = <span class="fstat-no" title="function not covered" >({</span> Icon, value, name, ariaLabel }: ViewCardProps) =&gt; {
-<span class="cstat-no" title="statement not covered" >  return (</span>
-    &lt;article className="stat-card" aria-label={ariaLabel}&gt;
-      &lt;div className="stat-icon"&gt;
-        &lt;Icon size={24} /&gt;
-      &lt;/div&gt;
-      &lt;div className="stat-content"&gt;
-        &lt;div className="stat-value"&gt;
-          ${value ? value.toLocaleString() : "0"}
-        &lt;/div&gt;
-        &lt;div className="stat-label"&gt;{name}&lt;/div&gt;
-      &lt;/div&gt;
-    &lt;/article&gt;
-  );
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">&nbsp;
+export function <span class="fstat-no" title="function not covered" >formatTransactionCount&lt;</span>T&gt;(content: T[] | T): string {
+  let count = <span class="cstat-no" title="statement not covered" >''; </span>
+  const length = <span class="cstat-no" title="statement not covered" >Array.isArray(content) ? content?.length : content as number;</span>
+<span class="cstat-no" title="statement not covered" >  if(length &lt;= 999){</span>
+<span class="cstat-no" title="statement not covered" >    if(Array.isArray(content)){</span>
+<span class="cstat-no" title="statement not covered" >      if(length == 1 &amp;&amp; content[0] == '') <span class="cstat-no" title="statement not covered" >count = '0'</span></span>
+      else <span class="cstat-no" title="statement not covered" >count = length.toString()</span>
+    }
+    else <span class="cstat-no" title="statement not covered" >count = length.toString()</span>
+  }
+  else <span class="cstat-no" title="statement not covered" >if(length &gt; 999 &amp;&amp; length &lt;= 999_999)</span>
+<span class="cstat-no" title="statement not covered" >    count = ((length / 1000).toFixed(1)).toString() + 'K'</span>
+  else <span class="cstat-no" title="statement not covered" >if(length &gt; 999_999 &amp;&amp; length &lt;= 999_999_999)</span>
+<span class="cstat-no" title="statement not covered" >    count = ((length / 1000_000).toFixed(1)).toString() + 'M'</span>
+  else <span class="cstat-no" title="statement not covered" >if(length &gt; 999_999_999)</span>
+<span class="cstat-no" title="statement not covered" >    count = ((length / 1000_000_000).toFixed(1)).toString() + 'B'</span>
+<span class="cstat-no" title="statement not covered" >  return count</span>
 }
 &nbsp;</pre></td></tr></table></pre>
 

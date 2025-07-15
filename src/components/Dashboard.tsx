@@ -40,8 +40,8 @@ import { formatTransactionCount } from "../utils/helper";
 const TransactionView = lazy(() => import('./TransactionView'));
 const TransactionList = lazy(() => import('./TransactionList'));
 
-const INITIAL_BATCH = 1_000;
-const BACKGROUND_BATCH = 100_000;
+const INITIAL_BATCH = 250;
+const BACKGROUND_BATCH = 1_000;
 
 export const Dashboard: React.FC = () => {
   const { globalSettings, trackActivity } = useUserContext() as UserContextType;

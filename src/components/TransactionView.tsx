@@ -21,6 +21,7 @@ const TransactionView: React.FC<TransactionViewProps> = ({ selectedTransaction, 
   return (
     <div 
     role="dialog"
+    data-testid="transaction-view"
     aria-label={`Transaction details for ${selectedTransaction.id}`}
     onKeyDown={(e) => {
       if (e.key === "Escape" || e.key === "Enter") handleCloseTransactionView();

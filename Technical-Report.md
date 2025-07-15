@@ -5,6 +5,11 @@ This project is a FinTech dashboard UI assessment to handle large transaction da
 ## Table of Contents
 
 1. [Project Overview](#project-overview)
+2. [Architectural Setup](#architectural-setup)
+   - [Component Structure](#component-structure)
+   - [Data Flow](#data-flow)
+   - [Performance Optimizations](#performance-optimizations)
+   - [Technologies Used](#technologies-used)
 2. [Performance Optimization](#performance-optimization)
    - [Initial Performance Issues](#initial-performance-issues)
    - [Chrome Performance Analysis](#chrome-performance-analysis)
@@ -29,13 +34,68 @@ This project is a FinTech dashboard UI assessment to handle large transaction da
 
 ## Project Overview
 
-The FinTech Dashboard is a responsive, performant web application for visualizing and analyzing financial transactions. Key features include:
-- **SearchBar**: A debounced search input with autocomplete suggestions from a predefined list and recent searches stored in `localStorage`.
-- **TransactionList**: Displays paginated transaction data with lazy loading and error boundaries.
-- **DashboardNav**: Provides navigation controls for filtering and sorting transactions.
-- **AnalyticsEngine**: Performs risk assessments and fraud detection on transaction data.
+The FinTech Dashboard is a high-performance web application for analyzing financial transactions. It meets strict performance targets:
+- **Load Time**: <1s
+- **Search Response**: <100ms
+- **Memory Usage**: <100MB
+- **Scrolling**: 60fps
+
+Key features:
+- **SearchBar**: Debounced search with autocomplete suggestions and recent searches via `localStorage`.
+- **TransactionList**: Paginated, virtualized rendering of transactions.
+- **DashboardNav**: Navigation and filtering controls.
+- **AnalyticsEngine**: Fraud detection and risk assessment.
 
 The application is optimized to handle large datasets (up to 100K transactions) while maintaining smooth rendering, fast searches, and low memory usage.
+
+## Architectural Setup
+
+### Component Structure
+The application follows a modular, component-based architecture:
+- **Dashboard**: The root component orchestrates data loading, state management, and rendering of child components.
+  - Manages `transactions`, `filteredTransactions`, `loading`, and `progress` states.
+  - Uses Web Workers for data generation and chunked processing.
+- **SearchBar**: Handles user input, displays suggestions, and stores recent searches in `localStorage`.
+  - Optimized with 300ms debouncing to reduce state updates.
+  - Accessible with ARIA attributes and keyboard navigation.
+- **TransactionList**: Renders a paginated list of transactions using `react-window` for virtualization.
+  - Displays up to 500 transactions at a time to ensure low memory usage.
+  - Wrapped in `Suspense` and `ErrorBoundary` for lazy loading and error handling.
+- **DashboardNav**: Provides navigation and filtering controls.
+- **PageLoader**: Displays skeleton loading UI during data fetching.
+- **TransactionView**: Shows detailed transaction information in a modal or view.
+
+### Data Flow
+1. **Data Initialization**:
+   - The `Dashboard` uses a Web Worker to generate transaction data in chunks (250 for initial load, 500 for background) via `generateTransactionData`.
+   - Transactions are stored in `transactions` and `filteredTransactions` states, updated via `startTransition` to minimize re-renders.
+   - Progress is tracked with a throttled `setProgress` to avoid excessive updates.
+2. **Search and Filtering**:
+   - The `SearchBar` triggers `onSearch` with debounced input, updating `filteredTransactions` in the `Dashboard`.
+   - Suggestions are generated from a static `commonTerms` array or `localStorage` for recent searches.
+3. **Rendering**:
+   - `TransactionList` render only visible transactions, ensuring 60fps scrolling.
+   - `Suspense` and `ErrorBoundary` handle loading states and errors.
+4. **Analytics**:
+   - The `analyticsEngine` (`generateRiskAssessment`) processes up to 1,000 transactions for fraud detection, running in a Web Worker to avoid main thread blocking.
+
+### Performance Optimizations
+- **Web Workers**: Offload transaction generation and risk assessment to separate threads.
+- **Chunked Data**: Process transactions in small batches (250/500) to keep memory <100MB.
+- **Debouncing/Throttling**: Applied to `SearchBar` input (300ms) and progress updates (100ms).
+- **Memoization**: Cache expensive calculations (e.g., fraud scores) with `useMemo`.
+- **Cleanups**: Use `AbortController` and throttle cleanup to prevent memory leaks.
+
+
+### Technologies Used
+- **React**: Component-based UI with hooks (`useState`, `useEffect`, `useCallback`).
+- **TypeScript**: Type safety for components and data models.
+- **Material UI (MUI)**: Styling and UI components (e.g., `ListItem`, `ListItemText`).
+- **react-window**: Virtualization for `TransactionList`.
+- **lodash**: Debouncing (`debounce`) and throttling (`throttle`) for performance.
+- **lucide-react**: Icons for `SearchBar`.
+- **Jest/React Testing Library**: Unit and UI testing.
+- **Web Workers**: Background processing for large datasets.
 
 ## Performance Optimization
 
@@ -80,8 +140,13 @@ To meet performance targets (<1s load, <100ms search, <100MB memory, 60fps scrol
 > Chrome extension script evaluation added.
 - **Profiler Insights**:
   - The `TransactionList` component caused high rendering costs due to rendering 10,000+ transactions at once.
-  - Screenshots: 
+  - Screenshots:
+
+    Used Chrome DevTools to confirm LCP <1s, memory <100MB, and 60fps scrolling.
+  
     - ![Memory Usage Before](./public/assessment_analysis/memory-usage-after.png)
+
+    Used React Profiler monitor component rerenders.
     - ![Memory Usage Before 1](./public/assessment_analysis/profiler-after.png)
 ---
 
@@ -516,7 +581,7 @@ The dashboard adheres to WCAG 2.1 guidelines to ensure usability for all users:
    jest --logHeapUsage
    ```
 
-## Known Issues and Resolutions
+<!-- ## Known Issues and Resolutions
 
 ### Memory Issue in SearchBar Tests
 - **Issue**: The `SearchBar` test suite (`src/__mocks__/searchBar.test.tsx`) caused a "JavaScript heap out of memory" error due to `analyzeSearchPatterns` generating O(n²) substrings.
@@ -525,7 +590,7 @@ The dashboard adheres to WCAG 2.1 guidelines to ensure usability for all users:
   - Added 300ms debouncing to `onSearch`.
   - Capped `searchHistory` at 5 items.
   - Added `cleanup()` and `jest.clearAllMocks()` in tests.
-- **Test Fix**: Updated tests to expect suggestions from `commonTerms` (e.g., "starbucks") and recent searches from `localStorage`.
+- **Test Fix**: Updated tests to expect suggestions from `commonTerms` (e.g., "starbucks") and recent searches from `localStorage`. -->
 
 ## Future Improvements
 - **Dynamic Suggestions**: Integrate suggestions from transaction data instead of a static `commonTerms` array.

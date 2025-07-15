@@ -2,7 +2,7 @@
 export const DashboardNav: React.FC = () => {
 
   return (
-    <header className="dashboard-nav" role="header" aria-label="Dashboard navigation">
+    <header className="dashboard-nav" role="header" aria-label="Dashboard navigation" data-testid="dashboard-nav">
       <h1 className="hide" role="text" aria-describedby="FinTech Dashboard">FinTech Dashboard</h1>
       <h1 className="hide-mobile" role="text" aria-describedby="FinTech Dashboard">FinT-D</h1>
       <div className="dashboard-nav-user-info">

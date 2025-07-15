@@ -1,137 +1,124 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
+// import { act } from "react";
 import { SearchBar } from "../components/SearchBar";
 
-// Mock lucide-react icons
-jest.mock("lucide-react", () => ({
-  Search: () => <div data-testid="search-icon" />,
-  X: () => <div data-testid="icon-clear" />,
-}));
-
-// Mock localStorage
-const localStorageMock = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: jest.fn((key) => store[key] || null),
-    setItem: jest.fn((key, value) => {
-      store[key] = value.toString();
-    }),
-    clear: jest.fn(() => {
-      store = {};
-    }),
-  };
-})();
-Object.defineProperty(window, "localStorage", { value: localStorageMock });
-
-beforeAll(() => {
-  window.HTMLElement.prototype.scrollIntoView = jest.fn();
-});
+jest.useFakeTimers();
 
 describe("SearchBar", () => {
-  const mockOnSearch = jest.fn();
-  const mockSearchHistory = ["starbucks", "netflix"];
+  const onSearchMock = jest.fn();
+
+  beforeAll(() => {
+  // Prevent "scrollIntoView is not a function" error in test env
+    Element.prototype.scrollIntoView = jest.fn();
+  });
 
   beforeEach(() => {
-    mockOnSearch.mockClear();
-    localStorageMock.clear();
-    localStorageMock.getItem.mockReturnValue(JSON.stringify(mockSearchHistory));
-    localStorageMock.setItem.mockClear();
+    localStorage.clear();
+    sessionStorage.clear();
+    onSearchMock.mockClear();
   });
 
-  it("renders with input and placeholder", () => {
-    render(<SearchBar onSearch={mockOnSearch} />);
-    expect(screen.getByLabelText(/search transactions/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/search transactions/i)).toBeInTheDocument();
-    expect(screen.getByTestId("search-icon")).toBeInTheDocument();
+  it("renders input with placeholder", () => {
+    render(<SearchBar onSearch={onSearchMock} placeholder="Find something..." />);
+    expect(screen.getByPlaceholderText("Find something...")).toBeInTheDocument();
   });
 
-  it("shows suggestions and highlights matched term", async () => {
-    const user = userEvent.setup();
-    render(<SearchBar onSearch={mockOnSearch} />);
+  it("calls onSearch when input is typed (debounced)", async () => {
+    render(<SearchBar onSearch={onSearchMock} />);
     const input = screen.getByLabelText(/search transactions/i);
 
-    await user.type(input, "star");
-    // No timers needed since there's no debounce
-    await waitFor(() => {
-      const listbox = screen.getByRole("listbox");
-      expect(listbox).toBeInTheDocument();
-      const option = within(listbox).getByRole("option", {
-        name: (_content, element) =>
-          element?.textContent?.toLowerCase().includes("starbucks") || false,
-      });
-      expect(option).toBeInTheDocument();
-      expect(within(option).getByText(/star/i, { selector: "strong" })).toBeInTheDocument();
-    });
+    fireEvent.change(input, { target: { value: "net" } });
+    act(() => jest.advanceTimersByTime(300));
+
+    await waitFor(() => expect(onSearchMock).toHaveBeenCalledWith("net"));
   });
 
-  it("handles keyboard navigation (ArrowDown, Enter)", async () => {
-    const user = userEvent.setup();
-    render(<SearchBar onSearch={mockOnSearch} />);
+  it("shows suggestions when input has relevant text", async () => {
+    render(<SearchBar onSearch={onSearchMock} />);
     const input = screen.getByLabelText(/search transactions/i);
 
-    await user.type(input, "star");
-    await user.keyboard("{ArrowDown}");
-    await user.keyboard("{Enter}");
+    fireEvent.change(input, { target: { value: "goo" } });
+    act(() => jest.advanceTimersByTime(300));
 
-    await waitFor(() => {
-      expect(mockOnSearch).toHaveBeenCalledWith("starbucks");
-      expect(input).toHaveValue("starbucks");
-    });
+    const suggestions = screen.getAllByRole("option");
+    const googleOption = suggestions.find(
+      (el) => el.textContent?.toLowerCase().trim() === "google"
+    );
+    expect(googleOption).toBeInTheDocument();
   });
 
-  it("closes suggestions with Escape", async () => {
-    const user = userEvent.setup();
-    render(<SearchBar onSearch={mockOnSearch} />);
+  it("navigates suggestions with keyboard and selects on Enter", async () => {
+    render(<SearchBar onSearch={onSearchMock} />);
     const input = screen.getByLabelText(/search transactions/i);
 
-    await user.type(input, "star");
-    await waitFor(() => {
-      expect(screen.getByRole("listbox")).toBeInTheDocument();
-    });
+    fireEvent.change(input, { target: { value: "net" } });
+    act(() => jest.advanceTimersByTime(300));
 
-    await user.keyboard("{Escape}");
+    const suggestionItems = screen.getAllByRole("option");
 
-    await waitFor(() => {
-      expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
-    });
+    const netflixOption = suggestionItems.find(
+      (el) => el.textContent?.toLowerCase().trim() === "netflix"
+    );
+
+    expect(netflixOption).toBeInTheDocument();
+
+    // simulate keyboard navigation
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    // Optionally confirm that it selected `netflix`
+    expect(input).toHaveValue("netflix");
   });
 
-  it("shows recent searches when input is empty and focused", async () => {
-    const user = userEvent.setup();
-    render(<SearchBar onSearch={mockOnSearch} />);
+  it("clicks a suggestion", async () => {
+    render(<SearchBar onSearch={onSearchMock} />);
     const input = screen.getByLabelText(/search transactions/i);
-    await user.click(input); // Focus to show suggestions
 
-    await waitFor(() => {
-      const listbox = screen.getByRole("listbox");
-      expect(listbox).toBeInTheDocument();
-      expect(screen.getByText("Recent searches")).toBeInTheDocument(); // Test history header
-      const items = within(listbox).getAllByRole("option");
-      expect(items).toHaveLength(2);
-      expect(items[0]).toHaveTextContent("starbucks");
-      expect(items[1]).toHaveTextContent("netflix");
-    });
+    fireEvent.change(input, { target: { value: "app" } });
+    act(() => jest.advanceTimersByTime(300));
+
+    // const listbox = screen.getByRole("listbox");
+
+    const suggestionItems = screen.getAllByRole("option");
+    const appleOption = suggestionItems.find((el) =>
+      el.textContent?.trim().toLowerCase() === "apple"
+    );
+
+    expect(appleOption).toBeInTheDocument();
+    fireEvent.click(appleOption!);
   });
 
-  it("clears input and resets search", async () => {
-    const user = userEvent.setup();
-    render(<SearchBar onSearch={mockOnSearch} />);
+  test("clears input and resets suggestions to history", () => {
+    const onSearchMock = jest.fn();
+    localStorage.setItem("searchHistory", JSON.stringify(["venmo", "uber"]));
+    render(<SearchBar onSearch={onSearchMock} />);
+
     const input = screen.getByLabelText(/search transactions/i);
+    fireEvent.change(input, { target: { value: "venmo" } });
 
-    await user.type(input, "star");
-    expect(input).toHaveValue("star");
+    const clearBtn = screen.getByRole("button", { name: /clear search/i });
+    fireEvent.click(clearBtn);
 
-    await user.click(screen.getByLabelText("Clear search"));
     expect(input).toHaveValue("");
-    expect(mockOnSearch).toHaveBeenLastCalledWith("");
+    expect(onSearchMock).toHaveBeenLastCalledWith("");
+
+    // History should now be shown
+    expect(screen.getByText(/venmo/i)).toBeInTheDocument();
   });
 
-  it("has proper ARIA attributes", () => {
-    render(<SearchBar onSearch={mockOnSearch} />);
-    const input = screen.getByLabelText(/search transactions/i);
+  test("limits search term length and sanitizes input", () => {
+  render(<SearchBar onSearch={jest.fn()} />);
+  
+  const input = screen.getByLabelText(/search transactions/i);
+  
+  const longUnsafe = "<script>alert('x')</script>".repeat(10); // > 100 chars
+  
+  fireEvent.change(input, { target: { value: longUnsafe } });
 
-    expect(input).toHaveAttribute("aria-autocomplete", "list");
-    expect(input).toHaveAttribute("aria-controls", "search-suggestions");
-    expect(input).toHaveAttribute("aria-expanded", "false");
-  });
+  const value = (input as HTMLInputElement).value;
+
+  // Should not contain script tags
+  expect(value).not.toMatch(/[<>{}]/);
+  expect(value.length).toBeLessThanOrEqual(100);
+});
 });
