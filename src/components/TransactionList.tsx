@@ -127,9 +127,9 @@ const TransactionList: React.FC<TransactionListProps> = ({
             Transactions ({formatTransactionCount(totalTransactions || paginatedData.length)})
           </h2>
           <div className="transaction-list-pagination">
-            {[...Array(totalPages).keys()].slice(pagination, pagination + 5).map((page) => (
+            {[...Array(totalPages).keys()].slice(pagination, pagination + 5).map((page, i) => (
               <span
-                key={page}
+                key={i}
                 className={`${page + 1 === currentPage ? "active" : ""}`}
                 onClick={() => handlePageSelection(page + 1)}
               >

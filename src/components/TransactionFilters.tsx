@@ -64,8 +64,8 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = (
         }
       >
         <option value="">All Categories</option>
-        {getUniqueCategories().map((category) => (
-          <option key={category} value={category}>
+        {getUniqueCategories().map((category, i) => (
+          <option key={i} value={category}>
             {category}
           </option>
         ))}

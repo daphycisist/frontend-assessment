@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">6.25% </span>
+                <span class="strong">43.75% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>1/16</span>
+                <span class='fraction'>7/16</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">15% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/20</span>
+                <span class='fraction'>3/20</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/1</span>
+                <span class='fraction'>1/1</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">6.66% </span>
+                <span class="strong">46.66% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>1/15</span>
+                <span class='fraction'>7/15</span>
             </div>
         
             
@@ -84,14 +84,14 @@
 <a name='L19'></a><a href='#L19'>19</a>
 <a name='L20'></a><a href='#L20'>20</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -99,26 +99,26 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">&nbsp;
-export function <span class="fstat-no" title="function not covered" >formatTransactionCount&lt;</span>T&gt;(content: T[] | T): string {
-  let count = <span class="cstat-no" title="statement not covered" >''; </span>
-  const length = <span class="cstat-no" title="statement not covered" >Array.isArray(content) ? content?.length : content as number;</span>
-<span class="cstat-no" title="statement not covered" >  if(length &lt;= 999){</span>
-<span class="cstat-no" title="statement not covered" >    if(Array.isArray(content)){</span>
+export function formatTransactionCount&lt;T&gt;(content: T[] | T): string {
+  let count = ''; 
+  const length = Array.isArray(content) ? <span class="branch-0 cbranch-no" title="branch not covered" >content?.length </span>: content as number;
+  if(length &lt;= 999){
+    <span class="missing-if-branch" title="if path not taken" >I</span>if(Array.isArray(content)){
 <span class="cstat-no" title="statement not covered" >      if(length == 1 &amp;&amp; content[0] == '') <span class="cstat-no" title="statement not covered" >count = '0'</span></span>
       else <span class="cstat-no" title="statement not covered" >count = length.toString()</span>
     }
-    else <span class="cstat-no" title="statement not covered" >count = length.toString()</span>
+    else count = length.toString()
   }
-  else <span class="cstat-no" title="statement not covered" >if(length &gt; 999 &amp;&amp; length &lt;= 999_999)</span>
+  else <span class="cstat-no" title="statement not covered" ><span class="missing-if-branch" title="else path not taken" >E</span>if(length &gt; 999 &amp;&amp; length &lt;= 999_999)</span>
 <span class="cstat-no" title="statement not covered" >    count = ((length / 1000).toFixed(1)).toString() + 'K'</span>
   else <span class="cstat-no" title="statement not covered" >if(length &gt; 999_999 &amp;&amp; length &lt;= 999_999_999)</span>
 <span class="cstat-no" title="statement not covered" >    count = ((length / 1000_000).toFixed(1)).toString() + 'M'</span>
   else <span class="cstat-no" title="statement not covered" >if(length &gt; 999_999_999)</span>
 <span class="cstat-no" title="statement not covered" >    count = ((length / 1000_000_000).toFixed(1)).toString() + 'B'</span>
-<span class="cstat-no" title="statement not covered" >  return count</span>
+  return count
 }
 &nbsp;</pre></td></tr></table></pre>
 
@@ -127,7 +127,7 @@ export function <span class="fstat-no" title="function not covered" >formatTrans
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-07-15T13:38:14.585Z
+                at 2025-07-15T15:40:09.078Z
             </div>
         <script src="../prettify.js"></script>
         <script>

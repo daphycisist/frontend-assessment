@@ -76,23 +76,18 @@ body {
 .dashboard {
   max-width: 1400px;
   margin: 0 auto;
-  /* height: 100vh; */
-  /* background: linear-gradient(-150deg, #3d435999 65%, #fff0 95%); */
   background-color: #0a192f;
 }
 
 .dashboard-nav {
   display: flex;
   justify-content: space-between;
-  /* height50px; */
   align-items: center;
   z-index: 10;
   position: sticky;
   color: #ecf3f5;
   top: 0;
   padding: 20px 15px 7px 15px;
-  /* background: linear-gradient(151deg, #7e859f99 65%, #fff0 95%); */
-  /* opacity: 0.95; */
   background-color: #0a192f;
 }
 
@@ -364,7 +359,7 @@ body {
 
 .search-suggestions,
 .search-history {
-  position: absolute;
+  /* position: absolute; */
   top: 100%;
   left: 0;
   right: 0;
@@ -372,7 +367,7 @@ body {
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  z-index: 9999;
+  z-index: 999;
   max-height: 300px;
   overflow-y: auto;
   margin-top: 4px;
@@ -456,13 +451,8 @@ body {
   gap: 8px;
   padding: 0 24px 24px;
   color: #ffffff;
-  z-index: 50;;
+  /* z-index: 0; */
 }
-
-/* .transaction-list-pagination:nth-last-child {
-  content: "...";
-  color: red;
-} */
 
 .transaction-list-pagination {
   color: #ecdada;
@@ -658,7 +648,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  /* z-index: 0; */
 }
 
 .modal-content {

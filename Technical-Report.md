@@ -581,6 +581,16 @@ The dashboard adheres to WCAG 2.1 guidelines to ensure usability for all users:
    jest --logHeapUsage
    ```
 
+---
+
+
+```typescript
+// Use this when trying to change the dataset size. INITIAL_BATCH should be lower than the BACKGROUND_BATCH
+
+const INITIAL_BATCH = 250;
+const BACKGROUND_BATCH = 1_000;
+```
+
 <!-- ## Known Issues and Resolutions
 
 ### Memory Issue in SearchBar Tests

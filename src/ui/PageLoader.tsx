@@ -3,7 +3,7 @@ import { LoadingTransaction } from "./LoadingTransaction";
 
 export const PageLoader: React.FC = () => {
   return (
-    <div className="dashboard">
+    <div className="dashboard" data-testid="page-loader">
       <DashboardNav />
 
       <section className="dashboard-wrapper">

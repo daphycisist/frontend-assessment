@@ -28,14 +28,12 @@ import { useRiskAnalytics } from "../hooks/useRiskAnalytics";
 import { useSearchAndSummary } from "../hooks/useSearchAndSummary";
 import { PageLoader } from "../ui/PageLoader";
 import { TransactionFilters } from "./TransactionFilters";
-// import { TransactionList } from "./TransactionList";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { DashboardNav } from "./DashboardNav";
 import { generateTransactionData } from "../utils/worker";
 import { Loader } from "../ui/Loader";
 import { LoadingTransaction } from "../ui/LoadingTransaction";
 import { formatTransactionCount } from "../utils/helper";
-// import localstorage from "../utils/localstorage";
 
 const TransactionView = lazy(() => import('./TransactionView'));
 const TransactionList = lazy(() => import('./TransactionList'));

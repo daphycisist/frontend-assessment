@@ -93,12 +93,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           const next = [rawValue, ...filtered].slice(0, 10);
           return next;
         });
-
-        // Optional: only analyze if you truly need analytics
-        if (rawValue.length <= 100) {
-          // Slightly optimized pattern analysis (if needed)
-        }
-
+    
         if (rawValue.length > 10) {
           const hash = rawValue
             .split("")
@@ -173,7 +168,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           ref={inputRef}
           type="text"
           value={searchTerm}
-          // onBlur={() => setIsListOpen(false)}
+          onBlur={() => setIsListOpen(false)}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
@@ -197,7 +192,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           {searchTerm.length > 0 && suggestions.length > 0 ? (
             suggestions.map((sugg, i) => (
               <div
-                key={sugg}
+                key={i}
                 className={`suggestion-item ${i === focusedIndex ? "focused" : ""}`}
                 onClick={() => handleSuggestionClick(sugg)}
                 role="option"
@@ -219,7 +214,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
               <div className="history-header">Recent searches</div>
               {searchHistory.slice(0, 5).map((item, i) => (
                 <div
-                  key={item}
+                  key={i}
                   className={`history-item ${i === focusedIndex ? "focused" : ""}`}
                   onClick={() => handleSuggestionClick(item)}
                   role="option"
