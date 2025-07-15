@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Transaction, UserPreferences } from "../types/transaction";
@@ -9,7 +10,6 @@ interface TransactionListProps {
   totalTransactions?: number;
   onTransactionClick: (transaction: Transaction) => void;
   userPreferences: UserPreferences;
-  fetchMoreData?: (page: number, itemsPerPage: number) => Promise<Transaction[]>;
 }
 
 type PagesInfo = {
@@ -20,7 +20,7 @@ type PagesInfo = {
 
 const MemoizedTransactionItem = React.memo(TransactionItem);
 
-export const TransactionList: React.FC<TransactionListProps> = ({
+const TransactionList: React.FC<TransactionListProps> = ({
   transactions,
   totalTransactions,
   onTransactionClick,
@@ -54,7 +54,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
     const start = (currentPage - 1) * itemsPerPage;
     const end = start + itemsPerPage;
     return transactions.slice(start, end);
-  }, [currentPage, userPreferences.itemsPerPage]);
+  }, [currentPage, transactions, userPreferences.itemsPerPage]);
 
   // Update displayed transactions
   useEffect(() => {
@@ -110,8 +110,9 @@ export const TransactionList: React.FC<TransactionListProps> = ({
 
   const handlePageSelection = useCallback(
     (selectedPage: number) => {
-      if (selectedPage > currentPage) handlePage("next", selectedPage);
-      else if (selectedPage <= currentPage) handlePage("prev", selectedPage);
+      const current = currentPage;
+      if (selectedPage > current) handlePage("next", selectedPage);
+      else if (selectedPage <= current) handlePage("prev", selectedPage);
     },
     [currentPage, handlePage]
   );
@@ -178,3 +179,4 @@ export const TransactionList: React.FC<TransactionListProps> = ({
     </div>
   );
 };
+export default TransactionList;

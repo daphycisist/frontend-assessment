@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Search, X } from "lucide-react";
@@ -22,17 +23,8 @@ export const SearchBar: React.FC<SearchBarProps> = (
   const [focusedSuggestion, setFocusedSuggestion] = useState<number>(-1);
   const [isListOpen, setIsListOpen] = useState(false);
 
-  const debounceTimeout = useRef<any | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLInputElement>(null);
-
-  // Debounce function
-  const debounce = useCallback(<T extends (...args: any[]) => void>(fn: T, delay: number) => {
-    return (...args: Parameters<T>) => {
-      if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
-      debounceTimeout.current = setTimeout(() => fn(...args), delay);
-    };
-  }, []);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const analyzeSearchPatterns = (term: string) => {
     const segments = [];
@@ -54,18 +46,20 @@ export const SearchBar: React.FC<SearchBarProps> = (
 
    // Save search history to localStorage
   useEffect(() => {
-    localStorage.setItem("searchHistory", JSON.stringify(searchHistory));
+    localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
   }, [searchHistory]);
 
+  // Update search history when searchTerm changes
   useEffect(() => {
     if (searchTerm && searchTerm.length > 2) {
       setSearchHistory((prev) => {
-        if (prev?.length > 10) prev.pop();
-          
-        return [searchTerm, ...prev]
+        if (prev.length > 10) prev.pop();
+        return [searchTerm, ...prev.filter((item) => item !== searchTerm)];
       });
     }
-  }, [searchTerm]);
+    // Update isListOpen when searchTerm or searchHistory changes
+    setIsListOpen(searchTerm.length === 0 && searchHistory.length > 0);
+  }, [searchTerm, searchHistory]);
 
   const calculateRelevanceScore = (item: string, term: string): number => {
     let score = 0;
@@ -107,45 +101,22 @@ export const SearchBar: React.FC<SearchBarProps> = (
     return result;
   }, []);
 
-  // Debounced search handler
-  const debouncedSearch = useCallback(
-    debounce((term: string) => {
-      setIsSearching(true);
-      onSearch(term);
-
-      if (term.length > 2) {
-        const analytics = analyzeSearchPatterns(term);
-        console.log("Search analytics:", analytics);
-        const newSuggestions = generateSuggestions(term);
-        setIsListOpen(newSuggestions.length > 0);
-      } else {
-        setSuggestions([]);
-        setIsListOpen(term.length === 0 && searchHistory.length > 0);
-      }
-      setIsSearching(false);
-    }, 300),
-    [onSearch, generateSuggestions, analyzeSearchPatterns]
-  );
-
-  useEffect(() => {
-    if (searchTerm.length > 0 && !isSearching) {
-      setIsSearching(true);
-
-      // Generate search analytics for user behavior tracking
-      const searchAnalytics = analyzeSearchPatterns(searchTerm);
-      console.log("Search analytics:", searchAnalytics);
-      const newSuggestions = generateSuggestions(searchTerm);
-      setIsListOpen(newSuggestions.length > 0);
-      setIsSearching(false);
-    } else {
-      setSuggestions([]);
-      setIsListOpen(searchTerm.length === 0 && searchHistory.length > 0);
-    }
-  }, [searchTerm, generateSuggestions, isSearching, searchHistory.length]);
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/[<>{}]/g, "");
     setSearchTerm(value);
+    setIsSearching(true);
+    onSearch(value);
+
+    if (value.length > 2) {
+      const analytics = analyzeSearchPatterns(value);
+      console.log("Search analytics:", analytics);
+      const newSuggestions = generateSuggestions(value);
+      setIsListOpen(newSuggestions.length > 0);
+    } else {
+      setSuggestions([]);
+      setIsListOpen(value.length === 0 && searchHistory.length > 0);
+    }
+    setIsSearching(false);
 
     // Enhanced security validation for longer inputs
     if (value.length > 10) {
@@ -166,17 +137,23 @@ export const SearchBar: React.FC<SearchBarProps> = (
     }
     
     setFocusedSuggestion(-1);
-    debouncedSearch(value);
   };
 
-   const handleClear = () => {
+  const handleClear = () => {
     setSearchTerm("");
     setSuggestions([]);
     setFocusedSuggestion(-1);
-    setIsListOpen(searchHistory.length > 0);
+    setIsListOpen(searchHistory.length > 0); // Ensure list stays open if history exists
     onSearch("");
     inputRef.current?.focus();
   };
+
+  // useEffect(() => {
+  //   if (!searchTerm?.trim()) {
+  //     handleClear();
+  //   }
+  // }, [searchTerm])
+
 
   const handleSuggestionClick = (suggestion: string) => {
     setSearchTerm(suggestion);
@@ -211,13 +188,17 @@ export const SearchBar: React.FC<SearchBarProps> = (
     }
   };
 
-  // Cleanup on unmount
+  // // Cleanup on unmount
+  // useEffect(() => {
+  //   // Ensure input focus on mount
+  //   inputRef.current?.focus();
+  //   return () => {
+  //     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+  //   };
+  // }, []);
+
   useEffect(() => {
-    // Ensure input focus on mount
     inputRef.current?.focus();
-    return () => {
-      if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
-    };
   }, []);
 
     // Scroll focused suggestion into view
@@ -241,7 +222,7 @@ export const SearchBar: React.FC<SearchBarProps> = (
         <input
           type="text"
           value={searchTerm}
-          onBlur={() => setSearchHistory([])}
+          // onBlur={() => setSearchHistory([])}
           onKeyDown={handleKeyDown}
           onChange={handleInputChange}
           placeholder={placeholder}

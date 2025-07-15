@@ -58,7 +58,7 @@ describe("Dashboard", () => {
   const runAdvancedAnalyticsMock = jest.fn();
   beforeEach(() => {
     jest.spyOn(userContext, "useUserContext").mockReturnValue(mockContext as any);
-    jest.spyOn(dataGenerator, "generateTransactionDataAsync").mockImplementation(async (total, onProgress) => {
+    jest.spyOn(dataGenerator, "generateTransactionDataAsync").mockImplementation(async (_total, onProgress) => {
       onProgress(largeMockTransactions);
       return largeMockTransactions;
     });

@@ -1,4 +1,5 @@
 import { DashboardNav } from "../components/DashboardNav"
+import { LoadingTransaction } from "./LoadingTransaction";
 
 export const PageLoader: React.FC = () => {
   return (
@@ -26,10 +27,8 @@ export const PageLoader: React.FC = () => {
           </div>
         </div>
 
-        <div className="dashboard-loading">
-          <div className="loading-spinner"></div>
-          <p>Loading transactions...</p>
-        </div>
+        <LoadingTransaction />
+        
       </section>
     </div>
   );

@@ -6,7 +6,7 @@ type TransactionViewProps = {
   handleCloseTransactionView: () => void
 }
 
-export const TransactionView: React.FC<TransactionViewProps> = ({ selectedTransaction, handleCloseTransactionView }: TransactionViewProps) => {
+const TransactionView: React.FC<TransactionViewProps> = ({ selectedTransaction, handleCloseTransactionView }: TransactionViewProps) => {
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -58,3 +58,4 @@ export const TransactionView: React.FC<TransactionViewProps> = ({ selectedTransa
     </div>
   );
 }
+export default TransactionView;

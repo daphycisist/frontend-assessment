@@ -1,5 +1,15 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, 
+  {
+    lazy,
+    useState,
+    useEffect,
+    useCallback,
+    useRef,
+    startTransition,
+    Suspense,
+  } from "react";
 import {
   Transaction,
   FilterOptions,
@@ -7,35 +17,37 @@ import {
   UserPreferences,
   UserContextType,
 } from "../types/transaction";
-import {
-  generateTransactionDataAsync,
-  // searchTransactions,
-  calculateSummary,
-  startDataRefresh,
-  stopDataRefresh,
-  // generateTransactionData,
-} from "../utils/dataGenerator";
+import { calculateSummary, startDataRefresh, stopDataRefresh } from "../utils/dataGenerator";
 import { SearchBar } from "./SearchBar";
 import { useUserContext } from "../hooks/useUserContext";
 import { DollarSign, TrendingUp, TrendingDown, Clock } from "lucide-react";
-// import { formatTransactionDate, getDateRange } from "../utils/dateHelpers";
 import { generateRiskAssessment } from "../utils/analyticsEngine";
 import { ViewCard } from "./ViewCard";
 import { useTransactionFilters } from "../hooks/useTransactionFilters";
 import { useRiskAnalytics } from "../hooks/useRiskAnalytics";
 import { useSearchAndSummary } from "../hooks/useSearchAndSummary";
-import { TransactionView } from "./TransactionView";
 import { PageLoader } from "../ui/PageLoader";
 import { TransactionFilters } from "./TransactionFilters";
-import { TransactionList } from "./TransactionList";
+// import { TransactionList } from "./TransactionList";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { DashboardNav } from "./DashboardNav";
+import { generateTransactionData } from "../utils/worker";
+import { Loader } from "../ui/Loader";
+import { LoadingTransaction } from "../ui/LoadingTransaction";
+import localstorage from "../utils/localstorage";
+
+const TransactionView = lazy(() => import('./TransactionView'));
+const TransactionList = lazy(() => import('./TransactionList'));
+
+const INITIAL_BATCH = 250;
+const BACKGROUND_BATCH = 1000;
 
 export const Dashboard: React.FC = () => {
   const { globalSettings, trackActivity } = useUserContext() as UserContextType;
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
-  const [transactionRecord, setTransactionRecord] = useState<Transaction[]>([]);
+
+  const [progress, setProgress] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<FilterOptions>({
     type: "all",
@@ -45,17 +57,19 @@ export const Dashboard: React.FC = () => {
   });
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [summary, setSummary] = useState<TransactionSummary | null>(null);
-  const [refreshInterval] = useState<number>(5000);
+
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const searchSectionRef = useRef<HTMLElement>(null);
   const resultsSectionRef = useRef<HTMLElement>(null);
   const filtersSectionRef = useRef<HTMLElement>(null);
 
+  const abortController = useRef(new AbortController());
+
   const defaultTimestamps = { created: Date.now(), updated: Date.now() };
   const [userPreferences, setUserPreferences] = useState<UserPreferences>({
     theme: globalSettings.theme,
     currency: globalSettings.currency,
-    itemsPerPage: 20,
+    itemsPerPage: 30,
     sortOrder: "desc",
     enableNotifications: true,
     autoRefresh: true,
@@ -68,7 +82,6 @@ export const Dashboard: React.FC = () => {
   const { handleSearch } = useSearchAndSummary(
     transactions,
     filters,
-    applyFilters,
     setFilteredTransactions,
     setSummary,
     trackActivity,
@@ -98,27 +111,54 @@ export const Dashboard: React.FC = () => {
 
   // Incremental summary update
   const updateSummary = useCallback((chunk: Transaction[]) => {
-    setSummary(calculateSummary(chunk));
+     if (chunk?.length > 0) {
+       setSummary(calculateSummary(chunk));
+      }
   }, []);
 
   // Load initial data with Web Worker
   useEffect(() => {
+    localstorage.clear()
     let isMounted = true;
     const loadInitialData = async () => {
       const initialData: Transaction[] = [];
       setLoading(true);
 
-      await generateTransactionDataAsync(
-      100_000,
-      (chunk: Transaction[]) => {
-          if (initialData?.length < 1000) initialData.push(...chunk);
-          // setTransactions((prev) => [...prev, ...chunk]);
-          // setFilteredTransactions((prev) => [...prev, ...chunk]);
-          console.log('run')
-          setTransactionRecord((prev) => [...prev, ...chunk]);
+      generateTransactionData({
+        total: INITIAL_BATCH,
+        chunkSize: 250,
+        signal: abortController.current.signal,
+        onChunk: (chunk) => {
+          startTransition(() => {
+            setTransactions((prev) => [...prev, ...chunk]);
+          });
+          startTransition(() => {
+            setFilteredTransactions((prev) => ([...prev, ...chunk]))
+          });
         },
-        100
-      );
+        onProgress: (p) => setProgress(p * 0.01),
+        onDone: () => {
+          setLoading(false);
+
+          // Step 2: Load the remaining transactions in the background
+          generateTransactionData({
+            total: BACKGROUND_BATCH - INITIAL_BATCH,
+            chunkSize: 500,
+            signal: abortController.current.signal,
+            onChunk: (chunk) => {
+              startTransition(() => {
+                setTransactions((prev) => [...prev, ...chunk]);
+              });
+              startTransition(() => {
+                setFilteredTransactions((prev) => ([...prev, ...chunk]))
+              });
+            },
+            onProgress: (p) =>
+              setProgress((prev) => prev + (p * (99 / 100))),
+            onDone: () => console.log("All transactions loaded."),
+          });
+        },
+      });
 
       if (initialData.length > 1000) {
         console.log("Starting risk assessment...");
@@ -137,68 +177,37 @@ export const Dashboard: React.FC = () => {
       isMounted = false;
       setTransactions([]);
       setFilteredTransactions([]);
-      setSummary({} as TransactionSummary);
+      abortController.current.abort();
       // if (worker) worker.terminate();
     };
-  }, [throttle]);
+  }, []);
 
-  // useEffect(() => {
-  // }, [filteredTransactions, updateSummary])
-  
   useEffect(() => {
-    const [MinRecord, MaxRecord] = [1000, 2000];
-    if (transactionRecord?.length) {
-      updateSummary(transactionRecord);
-    }
+    const id = startDataRefresh(() => {
+      generateTransactionData({
+        total: INITIAL_BATCH,
+        chunkSize: 50,
+        signal: abortController.current.signal,
+        onChunk: (chunk) => {
+          startTransition(() => {
+            setTransactions((prev) => [...prev, ...chunk]);
+          });
+        },
+        onProgress: (p) =>
+          setProgress((prev) => prev + (p * (99 / 100))),
+        onDone: () => console.log("All transactions loaded."),
+      });
+    });
 
-    if (transactionRecord?.length >= MinRecord && transactionRecord?.length <= MaxRecord) {
-      if (transactionRecord?.length <= MaxRecord && !transactions?.length) {
-        console.log('fill up once')
-        setFilteredTransactions(transactionRecord)
-        setTransactions(transactionRecord);
-      } else {
-        console.log('delete')
-        setTransactionRecord((prev) => prev?.splice(0, MaxRecord))
-      }
-    }
+    // Note: Cleanup commented out for development - enable in production
+    return () => stopDataRefresh(id);
+  }, []);
 
-  }, [transactionRecord, updateSummary, transactions])
-
-  // Auto-refresh with capped transactions
   useEffect(() => {
-    if (!userPreferences.autoRefresh) return;
-
-    let isInteracting = false;
-
-    // Detect user interaction to pause refresh
-    const handleInteraction = throttle(() => {
-      isInteracting = true;
-      setTimeout(() => {
-        isInteracting = false;
-      }, 500); // Resume after 5s inactivity
-    }, 100);
-
-    window.addEventListener("scroll", handleInteraction);
-    window.addEventListener("click", handleInteraction);
-
-    const intervalId = startDataRefresh(() => {
-      if (isInteracting) return; // Skip refresh during interaction
-      // setTransactions((currentTransactions) => {
-      //   const newData = generateTransactionData(200);
-      //   const updatedData = [...currentTransactions, ...newData]; // Append and cap at 1,000
-      //   // const updatedData = [...currentTransactions, ...newData].slice(-1000); // Append and cap at 1,000
-      //   updateSummary(newData);
-      //   applyFilters(updatedData, filters, "");
-      //   return updatedData;
-      // });
-    }, refreshInterval);
-
-    return () => {
-      stopDataRefresh(intervalId);
-      window.removeEventListener("scroll", handleInteraction);
-      window.removeEventListener("click", handleInteraction);
-    };
-  }, [refreshInterval, userPreferences.autoRefresh, updateSummary, applyFilters, filters, throttle]);
+    if (filteredTransactions?.length > 0) {
+      updateSummary(filteredTransactions);
+    }
+  }, [filteredTransactions, updateSummary])
 
   // Optimized event listeners
   useEffect(() => {
@@ -267,7 +276,7 @@ export const Dashboard: React.FC = () => {
   return (
     <>
       {
-        loading && !filteredTransactions?.length 
+        (loading && !filteredTransactions?.length) 
         ? <PageLoader />
         : (
         <main className="dashboard"  aria-label="Transaction Dashboard">
@@ -301,23 +310,32 @@ export const Dashboard: React.FC = () => {
                   </div>
                   <div className="stat-content">
                     <div className="stat-value">
-                      {transactionRecord?.length.toLocaleString()}
-                      {filteredTransactions.length !== transactionRecord.length && (
-                        <span className="stat-total"> of {transactionRecord.length.toLocaleString()}</span>
+                      {filteredTransactions?.length.toLocaleString()}
+                      {filteredTransactions.length !== transactions.length && (
+                        <span className="stat-total"> of {transactions?.length.toLocaleString()}</span>
                       )}
                     </div>
+
                     <div className="stat-label" id="transaction-count-label">
                       Transactions
-                      {isAnalyzing && <span> (Analyzing...)</span>}
-                      {riskAnalytics && <span> - Risk: {riskAnalytics.highRiskTransactions}</span>}
+                      {
+                        isAnalyzing 
+                          ? <span> (Analyzing...)</span>
+                          : riskAnalytics 
+                          ? <span> - Risk: {riskAnalytics.highRiskTransactions}</span>
+                          : null
+                      }
                     </div>
                   </div>
+                  
+                  {loading ? <Loader value={progress} /> : null}
+
                 </div>
               </div>
             </div>
 
             <section 
-            ref={searchSectionRef}
+            // ref={searchSectionRef}
             tabIndex={-1}
             aria-label="Search and filter controls"
             className="dashboard-controls">
@@ -341,21 +359,24 @@ export const Dashboard: React.FC = () => {
             aria-live="polite"
             className="dashboard-content">
               <ErrorBoundary>
-                <TransactionList
-                  transactions={filteredTransactions}
-                  totalTransactions={transactions.length}
-                  onTransactionClick={handleTransactionClick}
-                  userPreferences={userPreferences}
-                  aria-describedby="results-count"
-                />
+                <Suspense fallback={<LoadingTransaction />}>
+                  <TransactionList
+                    transactions={filteredTransactions?.slice(0, 500)}
+                    onTransactionClick={handleTransactionClick}
+                    totalTransactions={transactions?.length}
+                    userPreferences={userPreferences}
+                  />
+                </Suspense>
               </ErrorBoundary>
             </section>
 
             {selectedTransaction && (
-              <TransactionView
-                selectedTransaction={selectedTransaction}
-                handleCloseTransactionView={handleCloseTransactionView}
-              />
+              <Suspense fallback={<LoadingTransaction message="Loading transaction..." />}>
+                <TransactionView
+                  selectedTransaction={selectedTransaction}
+                  handleCloseTransactionView={handleCloseTransactionView}
+                />
+              </Suspense>
             )}
           </section>
         </main>

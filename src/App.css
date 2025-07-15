@@ -97,7 +97,7 @@ body {
 }
 
 .dashboard-nav h1 {
-  font-size: 2.5rem;
+  font-size: 2rem;
 }
 
 .dashboard-nav-user-info {
@@ -134,8 +134,8 @@ body {
   display: grid;
   place-content: center;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 20px;
-  margin-bottom: 30px;
+  gap: 12px;
+  margin-bottom: 20px;
   transition: all 0.25s ease;
 }
 
@@ -148,6 +148,31 @@ body {
   display: flex;
   align-items: center;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  white-space: nowrap;
+}
+
+.stat-card {
+  position: relative;
+}
+
+.stat-card .loading-progress-container span {
+  position: fixed;
+  right: 4px;
+  top: 9px;
+  font-size: 0.4rem;
+}
+
+.stat-card .loading-progress-container .loading-progress {
+  position: absolute;
+  top: 3px;
+  right: 2px;
+  color: #c4c5c7;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  border: 2px solid #052d6d;
+  border-left: #063278;
+  animation: spin 1s linear infinite;
 }
 
 .stat-card:hover {
@@ -165,7 +190,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 16px;
+  margin-right: 14px;
   color: #2196f3;
 }
 
@@ -174,7 +199,7 @@ body {
 }
 
 .stat-value {
-  font-size: 1.65rem;
+  font-size: 1.60rem;
   font-weight: 600;
   color: #faf4f4;
   line-height: 1.2;
@@ -692,7 +717,7 @@ button:focus {
   align-items: center;
   justify-self: end;
   gap: 0.8rem;
-  padding: 12px;
+  padding: 5px;
 }
 
 .page-counter button:active {
@@ -713,11 +738,11 @@ button:focus {
   display: grid;
   place-content: center;
   text-align: center;
-  font-size: 1.4rem;
-  width: 6rem;
+  font-size: 1.3rem;
+  width: 5rem;
   background-color: bisque;
   cursor: pointer;
-  margin-top: 10px;
+  margin-top: 8px;
   transition: all 0.2s ease;
 }
 
@@ -796,6 +821,16 @@ button:focus {
 
   .stat-card {
     padding: 16px;
+  }
+
+  .stat-value {
+    font-size: 1.45rem;
+  }
+ 
+  .stat-icon {
+    border-radius: 50%;
+    width: 45px;
+    height: 45px;
   }
 
   .filter-controls {

@@ -7,7 +7,8 @@ import {
 } from "../utils/riskUtils";
 import { RiskAnalytics, Transaction } from "../types/transaction";
 
-// Throttle Expensive Tasks like runAdvancedAnalytics - Slightly reduced delay and early return for light datasets.
+const CHUNK_SIZE = 250;
+
 export const useRiskAnalytics = (
   transactions: Transaction[],
   setRiskAnalytics: (data: RiskAnalytics | null) => void,
@@ -18,6 +19,9 @@ export const useRiskAnalytics = (
 
     setIsAnalyzing(true);
 
+    let currentIndex = 0;
+    const total = transactions.length;
+
     const analytics = {
       totalRisk: 0,
       highRiskTransactions: 0,
@@ -26,23 +30,32 @@ export const useRiskAnalytics = (
       generatedAt: Date.now(),
     };
 
-    for (const tx of transactions) {
-      const risk = calculateRiskFactors(tx, transactions);
-      const pattern = analyzeTransactionPatterns(tx, transactions);
-      const anomaly = detectAnomalies(tx, transactions);
+    const processChunk = () => {
+      const end = Math.min(currentIndex + CHUNK_SIZE, total);
 
-      analytics.totalRisk += risk;
-      if (risk > 0.7) analytics.highRiskTransactions++;
-      analytics.patterns[tx.id!] = pattern;
-      analytics.anomalies[tx.id!] = anomaly;
-    }
+      for (let i = currentIndex; i < end; i++) {
+        const tx = transactions[i];
+        const risk = calculateRiskFactors(tx, transactions);
+        const pattern = analyzeTransactionPatterns(tx, transactions);
+        const anomaly = detectAnomalies(tx, transactions);
 
-    const timeout = setTimeout(() => {
-      setRiskAnalytics(analytics);
-      setIsAnalyzing(false);
-    }, 1500);
+        analytics.totalRisk += risk;
+        if (risk > 0.7) analytics.highRiskTransactions++;
+        analytics.patterns[tx.id!] = pattern;
+        analytics.anomalies[tx.id!] = anomaly;
+      }
 
-    return () => clearTimeout(timeout);
+      currentIndex = end;
+
+      if (currentIndex < total) {
+        requestIdleCallback(processChunk, { timeout: 100 });
+      } else {
+        setRiskAnalytics(analytics);
+        setIsAnalyzing(false);
+      }
+    };
+
+    requestIdleCallback(processChunk, { timeout: 100 });
   }, [transactions, setIsAnalyzing, setRiskAnalytics]);
 
   return { runAdvancedAnalytics };

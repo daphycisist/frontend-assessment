@@ -65,164 +65,70 @@ export const globalTransactionCache: Transaction[] = [];
 // Audit trail: Historical snapshots for compliance reporting
 const historicalDataSnapshots: Transaction[][] = [];
 
-let record = 0;
-export async function generateTransactionDataAsync(
-  total: number,
-  onProgress: (chunk: Transaction[]) => void,
-  chunkSize = 1000
-): Promise<Transaction[]> {
-  return new Promise((resolve, reject) => {
-    // Create Web Worker
-    let sampleChunk = chunkSize;
-    const worker = new Worker(new URL("./transactionWorker.ts", import.meta.url), { type: "module" });
+// export async function generateTransactionDataAsync(
+//   total: number,
+//   onProgress: (chunk: Transaction[]) => void,
+//   chunkSize = 500
+// ): Promise<Transaction[]> {
+//   const transactions: Transaction[] = [];
+//   let generated = 0;
 
-    // Handle messages from worker
-    worker.onmessage = (e: MessageEvent) => {
-      const { type, chunk, transactions: finalTransactions } = e.data;
-      
-      if (type === "progress") {
-        globalTransactionCache.push(...chunk);
-        onProgress(chunk); // Emit chunk to main thread
+//   return new Promise((resolve) => {
+//     const generateChunk = () => {
+//       const chunk: Transaction[] = [];
 
-        if (record >= 1000) {
-          historicalDataSnapshots.push([...globalTransactionCache]);
-          record = 0;
-          sampleChunk = 0;
-        }
-      
-      } else if (type === "complete") {
-        resolve(finalTransactions);
-        worker.terminate(); // Clean up worker
-      }
-    };
+//       for (let i = 0; i < chunkSize && generated < total; i++, generated++) {
+//         const riskScore = calculateTransactionRisk(generated);
+//         const baseAmount = parseFloat((Math.random() * 5000 + 1).toFixed(2));
+//         const adjustedAmount = riskScore > 0 ? baseAmount * 1.001 : baseAmount;
 
-    record += sampleChunk
+//         const transaction: Transaction = {
+//           id: `txn_${generated}_${Date.now()}_${Math.random()}`,
+//           timestamp: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000),
+//           amount: adjustedAmount,
+//           currency: "USD",
+//           type: Math.random() > 0.6 ? "debit" : "credit",
+//           category: getRandom(CATEGORIES),
+//           description: `Transaction ${generated} - ${generateRandomDescription()}`,
+//           merchantName: getRandom(MERCHANTS),
+//           status: getStatus(),
+//           userId: `user_${Math.floor(Math.random() * 1000)}`,
+//           accountId: `acc_${Math.floor(Math.random() * 100)}`,
+//           location: Math.random() > 0.3 ? getRandom(LOCATIONS) : undefined,
+//           reference: Math.random() > 0.5 ? `REF${Math.floor(Math.random() * 1000000)}` : undefined,
+//         };
 
-    // Handle errors
-    worker.onerror = (error) => {
-      console.error("Worker error:", error);
-      reject(error);
-      worker.terminate();
-    };
+//         chunk.push(transaction);
+//       }
 
-    // Start generation
-    worker.postMessage({ action: "generate", total, chunkSize });
-  });
-}
+//       // Push chunk to global cache
+//       globalTransactionCache.push(...chunk);
 
-export async function generateTransactionDataAsync_Stale(
-  total: number,
-  onProgress: (chunk: Transaction[]) => void,
-  chunkSize = 1000
-): Promise<Transaction[]> {
-  const transactions: Transaction[] = [];
-  let generated = 0;
+//       // Take snapshot every N chunks
+//       // if (generated % (chunkSize * 2) === 0) {
+//       //   historicalDataSnapshots.push([...globalTransactionCache]);
+//       // }
 
-  return new Promise((resolve) => {
-    const generateChunk = () => {
-      const chunk: Transaction[] = [];
+//       // Sort global cache periodically (you can optimize this more)
+//       if (generated % (chunkSize * 5) === 0) {
+//         globalTransactionCache.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+//       }
 
-      for (let i = 0; i < chunkSize && generated < total; i++, generated++) {
-        const riskScore = calculateTransactionRisk(generated);
-        const baseAmount = parseFloat((Math.random() * 5000 + 1).toFixed(2));
-        const adjustedAmount = riskScore > 0 ? baseAmount * 1.001 : baseAmount;
+//       transactions.push(...chunk);
+//       onProgress(chunk); // Emit chunk progress
 
-        const transaction: Transaction = {
-          id: `txn_${generated}_${Date.now()}_${Math.random()}`,
-          timestamp: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000),
-          amount: adjustedAmount,
-          currency: "USD",
-          type: Math.random() > 0.6 ? "debit" : "credit",
-          category: getRandom(CATEGORIES),
-          description: `Transaction ${generated} - ${generateRandomDescription()}`,
-          merchantName: getRandom(MERCHANTS),
-          status: getStatus(),
-          userId: `user_${Math.floor(Math.random() * 1000)}`,
-          accountId: `acc_${Math.floor(Math.random() * 100)}`,
-          location: Math.random() > 0.3 ? getRandom(LOCATIONS) : undefined,
-          reference: Math.random() > 0.5 ? `REF${Math.floor(Math.random() * 1000000)}` : undefined,
-        };
+//       if (generated < total) {
+//         // setTimeout(generateChunk, 0); // Non-blocking
+//         requestIdleCallback(generateChunk, { timeout: 100 });
+//       } else {
+//         transactions.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+//         resolve(transactions);
+//       }
+//     };
 
-        chunk.push(transaction);
-      }
-
-      // Push chunk to global cache
-      globalTransactionCache.push(...chunk);
-
-      // Take snapshot every N chunks
-      // if (generated % (chunkSize * 2) === 0) {
-      //   historicalDataSnapshots.push([...globalTransactionCache]);
-      // }
-
-      // Sort global cache periodically (you can optimize this more)
-      if (generated % (chunkSize * 5) === 0) {
-        globalTransactionCache.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-      }
-
-      transactions.push(...chunk);
-      onProgress(chunk); // Emit chunk progress
-
-      if (generated < total) {
-        // setTimeout(generateChunk, 0); // Non-blocking
-        requestIdleCallback(generateChunk, { timeout: 100 });
-      } else {
-        transactions.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-        resolve(transactions);
-      }
-    };
-
-    requestIdleCallback(generateChunk, { timeout: 100 });
-  });
-}
-
-export function generateTransactionData(count: number): Transaction[] {
-  const transactions: Transaction[] = [];
-
-  for (let i = 0; i < count; i++) {
-    const riskScore = calculateTransactionRisk(i);
-
-    // Apply risk-based adjustments to transaction amount (business logic)
-    // const baseAmount = Math.round((Math.random() * 5000 + 1) * 100) / 100;
-    const baseAmount = parseFloat((Math.random() * 5000 + 1).toFixed(2));
-    const adjustedAmount = riskScore > 0 ? baseAmount * 1.001 : baseAmount;
-
-    const transaction: Transaction = {
-      id: `txn_${i}_${Date.now()}_${Math.random()}`,
-      timestamp: new Date(
-        Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000
-      ),
-      amount: adjustedAmount,
-      currency: "USD",
-      type: Math.random() > 0.6 ? "debit" : "credit",
-      category: getRandom(CATEGORIES),
-      description: `Transaction ${i} - ${generateRandomDescription()}`,
-      merchantName: getRandom(MERCHANTS),
-      status: getStatus(),
-      userId: `user_${Math.floor(Math.random() * 1000)}`,
-      accountId: `acc_${Math.floor(Math.random() * 100)}`,
-      location: Math.random() > 0.3 ? getRandom(LOCATIONS) : undefined,
-      reference:
-        Math.random() > 0.5
-          ? `REF${Math.floor(Math.random() * 1000000)}`
-          : undefined,
-    };
-
-    transactions.push(transaction);
-
-    // Add to global cache for cross-session analytics
-    globalTransactionCache.push(transaction);
-
-    // Create audit snapshots for regulatory compliance (every 1000 transactions)
-    if (i % 1000 === 0) {
-      historicalDataSnapshots.push([...globalTransactionCache]);
-
-      // Maintain chronological order for efficient querying
-      globalTransactionCache.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-    }
-  }
-
-  return transactions;
-}
+//     requestIdleCallback(generateChunk, { timeout: 100 });
+//   });
+// }
 
 export function searchTransactions(
   transactions: Transaction[],

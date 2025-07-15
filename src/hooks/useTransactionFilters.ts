@@ -16,7 +16,8 @@ export const useTransactionFilters = (
 ) => {
   const applyFilters = useCallback(
     (data: Transaction[], filters: FilterOptions, search: string) => {
-      let filtered = [...data];
+      let filtered = data;
+
       if (search) {
         filtered = searchTransactions(filtered, search);
       }
@@ -33,13 +34,15 @@ export const useTransactionFilters = (
       }
 
       if (filtered.length > 1000) {
-        filtered = filtered.map((transaction) => {
-          const risk = calculateRiskFactors(transaction, filtered);
-          const pattern = analyzeTransactionPatterns(transaction, filtered);
-          const anomaly = detectAnomalies(transaction, filtered);
+        const enriched = new Array(filtered.length);
+        for (let i = 0; i < filtered.length; i++) {
+          const tx = filtered[i];
+          const risk = calculateRiskFactors(tx, filtered);
+          const pattern = analyzeTransactionPatterns(tx, filtered);
+          const anomaly = detectAnomalies(tx, filtered);
 
-          return {
-            ...transaction,
+          enriched[i] = {
+            ...tx,
             riskScore: risk + pattern + anomaly,
             enrichedData: {
               risk,
@@ -48,7 +51,8 @@ export const useTransactionFilters = (
               timestamp: Date.now(),
             },
           };
-        });
+        }
+        filtered = enriched;
       }
 
       setFilteredTransactions(filtered);
@@ -56,9 +60,15 @@ export const useTransactionFilters = (
         ...prev,
         timestamps: { ...prev.timestamps, updated: Date.now() },
       }));
+
       return filtered;
     },
-    [userPreferences.compactView, userPreferences.itemsPerPage, setFilteredTransactions, setUserPreferences]
+    [
+      userPreferences.compactView,
+      userPreferences.itemsPerPage,
+      setFilteredTransactions,
+      setUserPreferences,
+    ]
   );
 
   return { applyFilters };
