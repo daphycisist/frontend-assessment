@@ -1,54 +1,92 @@
-import React, { useState, useEffect } from "react";
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, 
+  {
+    lazy,
+    useState,
+    useEffect,
+    useCallback,
+    useRef,
+    startTransition,
+    Suspense,
+  } from "react";
 import {
   Transaction,
   FilterOptions,
   TransactionSummary,
+  UserPreferences,
+  UserContextType,
 } from "../types/transaction";
-import {
-  generateTransactionData,
-  searchTransactions,
-  filterTransactions,
-  calculateSummary,
-  startDataRefresh,
-} from "../utils/dataGenerator";
-import { TransactionList } from "./TransactionList";
+import { calculateSummary, startDataRefresh, stopDataRefresh } from "../utils/dataGenerator";
 import { SearchBar } from "./SearchBar";
-import { useUserContext } from "../contexts/UserContext";
+import { useUserContext } from "../hooks/useUserContext";
 import { DollarSign, TrendingUp, TrendingDown, Clock } from "lucide-react";
-import { formatTransactionDate, getDateRange } from "../utils/dateHelpers";
 import { generateRiskAssessment } from "../utils/analyticsEngine";
+import { ViewCard } from "./ViewCard";
+import { useTransactionFilters } from "../hooks/useTransactionFilters";
+import { useRiskAnalytics } from "../hooks/useRiskAnalytics";
+import { useSearchAndSummary } from "../hooks/useSearchAndSummary";
+import { PageLoader } from "../ui/PageLoader";
+import { TransactionFilters } from "./TransactionFilters";
+import { ErrorBoundary } from "./ErrorBoundary";
+import { DashboardNav } from "./DashboardNav";
+import { generateTransactionData } from "../utils/worker";
+import { Loader } from "../ui/Loader";
+import { LoadingTransaction } from "../ui/LoadingTransaction";
+import { formatTransactionCount } from "../utils/helper";
+
+const TransactionView = lazy(() => import('./TransactionView'));
+const TransactionList = lazy(() => import('./TransactionList'));
+
+const INITIAL_BATCH = 250;
+const BACKGROUND_BATCH = 1_000;
 
 export const Dashboard: React.FC = () => {
-  const { globalSettings, trackActivity } = useUserContext();
+  const { globalSettings, trackActivity } = useUserContext() as UserContextType;
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [filteredTransactions, setFilteredTransactions] = useState<
-    Transaction[]
-  >([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
+
+  const [progress, setProgress] = useState<number>(0);
+  const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<FilterOptions>({
     type: "all",
     status: "all",
     category: "",
     searchTerm: "",
   });
-  const [selectedTransaction, setSelectedTransaction] =
-    useState<Transaction | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [summary, setSummary] = useState<TransactionSummary | null>(null);
-  const [refreshInterval, setRefreshInterval] = useState<number>(5000);
-  const [userPreferences, setUserPreferences] = useState({
+
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const searchSectionRef = useRef<HTMLElement>(null);
+  const resultsSectionRef = useRef<HTMLElement>(null);
+  const filtersSectionRef = useRef<HTMLElement>(null);
+
+  const abortController = useRef(new AbortController());
+
+  const defaultTimestamps = { created: Date.now(), updated: Date.now() };
+  const [userPreferences, setUserPreferences] = useState<UserPreferences>({
     theme: globalSettings.theme,
     currency: globalSettings.currency,
-    itemsPerPage: 50,
+    itemsPerPage: 30,
     sortOrder: "desc",
     enableNotifications: true,
     autoRefresh: true,
     showAdvancedFilters: false,
     compactView: false,
-    timestamps: { created: Date.now(), updated: Date.now() },
+    timestamps: defaultTimestamps,
   });
 
-  // Risk assessment and fraud detection analytics
+  const { applyFilters } = useTransactionFilters(userPreferences, setUserPreferences, setFilteredTransactions);
+  const { handleSearch } = useSearchAndSummary(
+    transactions,
+    filters,
+    setFilteredTransactions,
+    setSummary,
+    trackActivity,
+    searchSectionRef,
+  );
+
   const [riskAnalytics, setRiskAnalytics] = useState<{
     totalRisk: number;
     highRiskTransactions: number;
@@ -56,501 +94,296 @@ export const Dashboard: React.FC = () => {
     anomalies: Record<string, number>;
     generatedAt: number;
   } | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const { runAdvancedAnalytics } = useRiskAnalytics(transactions, setRiskAnalytics, setIsAnalyzing);
 
-  const actualRefreshRate = refreshInterval || 5000;
+  // Throttle function
+  const throttle = useCallback(<T extends (...args: any[]) => void>(fn: T, wait: number) => {
+    let lastCall = 0;
+    return (...args: Parameters<T>) => {
+      const now = Date.now();
+      if (now - lastCall >= wait) {
+        lastCall = now;
+        fn(...args);
+      }
+    };
+  }, []);
 
-  if (import.meta.env.DEV) {
-    console.log("Refresh rate configured:", actualRefreshRate);
-  }
+  // Incremental summary update
+  const updateSummary = useCallback((chunk: Transaction[]) => {
+     if (chunk?.length > 0) {
+       setSummary(calculateSummary(chunk));
+      }
+  }, []);
 
-  // Expose refresh controls for admin dashboard (planned feature)
-  const refreshControls = {
-    currentRate: refreshInterval,
-    updateRate: setRefreshInterval,
-    isActive: actualRefreshRate > 0,
-  };
-
-  // Store controls for potential dashboard integration
-  if (typeof window !== "undefined") {
-    (
-      window as { dashboardControls?: typeof refreshControls }
-    ).dashboardControls = refreshControls;
-  }
-
+  // Load initial data with Web Worker
   useEffect(() => {
+    let isMounted = true;
+  
     const loadInitialData = async () => {
       setLoading(true);
 
-      const initialData = generateTransactionData(10000);
-      setTransactions(initialData);
-      setFilteredTransactions(initialData);
+      generateTransactionData({
+        total: INITIAL_BATCH,
+        chunkSize: 250,
+        signal: abortController.current.signal,
+        onChunk: (chunk) => {
+          if (!isMounted) return;
+          startTransition(() => {
+            setTransactions((prev) => [...prev, ...chunk]);
+            setFilteredTransactions((prev) => ([...prev, ...chunk]))
+          });
+        },
+        onProgress: (p) => setProgress(p * 0.01),
+        onDone: () => {
+          if (!isMounted) return;
+          setLoading(false);
 
-      const calculatedSummary = calculateSummary(initialData);
-      setSummary(calculatedSummary);
+          // Step 2: Load the remaining transactions in the background
+          generateTransactionData({
+            total: BACKGROUND_BATCH - INITIAL_BATCH,
+            chunkSize: 500,
+            signal: abortController.current.signal,
+            onChunk: (chunk) => {
+              if (!isMounted) return;
+              startTransition(() => {
+                setTransactions((prev) => [...prev, ...chunk]);
+                setFilteredTransactions((prev) => ([...prev, ...chunk]))
+              });
+            },
+            onProgress: (p) =>
+              setProgress((prev) => prev + (p * (99 / 100))),
+            onDone: () => {
+              if (!isMounted) return;
+              
+              console.log("All transactions loaded.")
 
-      if (initialData.length > 0) {
-        console.log(
-          "Latest transaction:",
-          formatTransactionDate(initialData[0].timestamp)
-        );
-        console.log("Date range:", getDateRange(1));
-
-        // Run risk assessment for fraud detection compliance
-        if (initialData.length > 1000) {
-          console.log("Starting risk assessment...");
-          const metrics = generateRiskAssessment(initialData.slice(0, 1000));
-          console.log(
-            "Risk assessment completed:",
-            metrics.processingTime + "ms"
-          );
-        }
-      }
-
-      setLoading(false);
+              if (transactions.length > 1000) {
+                console.log("Starting risk assessment...");
+                const metrics = generateRiskAssessment(transactions.slice(0, 1000));
+                console.log("Risk assessment completed:", metrics.processingTime + "ms");
+              }
+            },
+          });
+        },
+      });
     };
-
-    loadInitialData();
+    
+    if (isMounted) loadInitialData();
+    return () => {
+      isMounted = false;
+      abortController.current.abort();
+      startTransition(() => {
+        setTransactions([]);
+        setFilteredTransactions([]);
+        setProgress(0);
+        setLoading(false);
+      });
+    };
   }, []);
 
   useEffect(() => {
-    startDataRefresh(() => {
-      setTransactions((currentTransactions) => {
-        const newData = generateTransactionData(200);
-        const updatedData = [...currentTransactions, ...newData];
-        return updatedData;
+    if (loading) return;
+
+    const id = startDataRefresh(() => {
+      generateTransactionData({
+        total: 200,
+        chunkSize: 100,
+        signal: abortController.current.signal,
+        onChunk: (chunk) => {
+          startTransition(() => {
+            setTransactions((prev) => [...prev, ...chunk]);
+          });
+        },
+        onProgress: (p) =>
+          setProgress((prev) => prev + (p * (99 / 100))),
+        onDone: () => console.log("All transactions loaded."),
       });
     });
 
     // Note: Cleanup commented out for development - enable in production
-    // return () => stopDataRefresh();
-  }, []);
+    return () => stopDataRefresh(id);
+  }, [loading]);
 
   useEffect(() => {
-    applyFilters(transactions, filters, searchTerm);
-  }, [transactions, filters, searchTerm]);
-
-  useEffect(() => {
-    if (filteredTransactions.length > 0) {
-      const newSummary = calculateSummary(filteredTransactions);
-      setSummary(newSummary);
+    if (filteredTransactions?.length > 0) {
+      updateSummary(filteredTransactions);
     }
+  }, [filteredTransactions, updateSummary])
 
-    if (filteredTransactions.length > 500) {
-      runAdvancedAnalytics();
-    }
-  }, [filteredTransactions]);
-
+  // Optimized event listeners
   useEffect(() => {
-    const handleResize = () => {
-      const newSummary = calculateSummary(filteredTransactions);
-      setSummary(newSummary);
-    };
+    const debouncedResize = throttle(() => {
+      // Only recalculate summary if filters changed
+      if (filteredTransactions.length > 0) {
+        setSummary(calculateSummary(filteredTransactions));
+      }
+    }, 500);
 
-    const handleScroll = () => {
+    const debouncedScroll = throttle(() => {
       console.log("Scrolling...", new Date().toISOString());
-    };
+    }, 100);
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === "f") {
         e.preventDefault();
-        const searchResults = searchTransactions(transactions, "search");
-        setFilteredTransactions(searchResults);
+        handleSearch("search");
       }
     };
 
-    window.addEventListener("resize", handleResize);
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("resize", debouncedResize);
+    window.addEventListener("scroll", debouncedScroll);
     window.addEventListener("keydown", handleKeyDown);
 
-    // return () => {
-    //   window.removeEventListener('resize', handleResize);
-    //   window.removeEventListener('scroll', handleScroll);
-    //   window.removeEventListener('keydown', handleKeyDown);
-    // };
-  }, [transactions, filteredTransactions]);
+    return () => {
+      window.removeEventListener("resize", debouncedResize);
+      window.removeEventListener("scroll", debouncedScroll);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [filteredTransactions, handleSearch, throttle]);
 
-  const applyFilters = (
-    data: Transaction[],
-    currentFilters: FilterOptions,
-    search: string
-  ) => {
-    let filtered = [...data];
-
-    if (search && search.length > 0) {
-      filtered = searchTransactions(filtered, search);
-    }
-
-    if (currentFilters.type && currentFilters.type !== "all") {
-      filtered = filterTransactions(filtered, { type: currentFilters.type });
-    }
-
-    if (currentFilters.status && currentFilters.status !== "all") {
-      filtered = filterTransactions(filtered, {
-        status: currentFilters.status,
-      });
-    }
-
-    if (currentFilters.category) {
-      filtered = filterTransactions(filtered, {
-        category: currentFilters.category,
-      });
-    }
-
-    if (userPreferences.compactView) {
-      filtered = filtered.slice(0, userPreferences.itemsPerPage);
-    }
-
-    // Enhanced fraud analysis for large datasets
-    if (filtered.length > 1000) {
-      const enrichedFiltered = filtered.map((transaction) => {
-        const riskFactors = calculateRiskFactors(transaction, filtered);
-        const patternScore = analyzeTransactionPatterns(transaction, filtered);
-        const anomalyDetection = detectAnomalies(transaction, filtered);
-
-        return {
-          ...transaction,
-          riskScore: riskFactors + patternScore + anomalyDetection,
-          enrichedData: {
-            riskFactors,
-            patternScore,
-            anomalyDetection,
-            timestamp: Date.now(),
-          },
-        };
-      });
-
-      setFilteredTransactions(enrichedFiltered);
-    } else {
-      setFilteredTransactions(filtered);
-    }
-
-    setUserPreferences((prev) => ({
-      ...prev,
-      timestamps: { ...prev.timestamps, updated: Date.now() },
-    }));
-  };
-
-  const handleSearch = (searchTerm: string) => {
-    setSearchTerm(searchTerm);
-    trackActivity(`search:${searchTerm}`);
-
-    const searchResults = searchTransactions(transactions, searchTerm);
-
-    const filtered = filterTransactions(searchResults, filters);
-    setFilteredTransactions(filtered);
-  };
-
-  const handleFilterChange = (newFilters: FilterOptions) => {
-    setFilters(newFilters);
-
-    applyFilters(transactions, newFilters, searchTerm);
-  };
-
-  const handleTransactionClick = (transaction: Transaction) => {
+  // Optimized transaction click handler
+  const handleTransactionClick = useCallback((transaction: Transaction) => {
     setSelectedTransaction(transaction);
-
-    const relatedTransactions = transactions.filter(
-      (t) =>
-        t.merchantName === transaction.merchantName ||
-        t.category === transaction.category ||
-        t.userId === transaction.userId
-    );
-
-    const analyticsData = {
-      clickedTransaction: transaction,
-      relatedCount: relatedTransactions.length,
-      timestamp: new Date(),
-      userAgent: navigator.userAgent,
-      sessionData: {
-        clickCount: Math.random() * 100,
-        timeSpent: Date.now() - performance.now(),
-        interactions: relatedTransactions.map((t) => ({
-          id: t.id,
-          type: t.type,
-        })),
-      },
-    };
-
-    setUserPreferences((prev) => ({
-      ...prev,
-      analytics: analyticsData,
-      timestamps: { ...prev.timestamps, updated: Date.now() },
-    }));
-
-    console.log("Related transactions:", relatedTransactions.length);
-  };
-
-  const calculateRiskFactors = (
-    transaction: Transaction,
-    allTransactions: Transaction[]
-  ) => {
-    const merchantHistory = allTransactions.filter(
-      (t) => t.merchantName === transaction.merchantName
-    );
-
-    // Risk scoring based on merchant familiarity, amount, and timing
-    const merchantRisk = merchantHistory.length < 5 ? 0.8 : 0.2;
-    const amountRisk = transaction.amount > 1000 ? 0.6 : 0.1;
-    const timeRisk = new Date(transaction.timestamp).getHours() < 6 ? 0.4 : 0.1;
-
-    return merchantRisk + amountRisk + timeRisk;
-  };
-
-  const analyzeTransactionPatterns = (
-    transaction: Transaction,
-    allTransactions: Transaction[]
-  ) => {
-    const similarTransactions = allTransactions.filter(
-      (t) =>
-        t.merchantName === transaction.merchantName &&
-        Math.abs(t.amount - transaction.amount) < 10
-    );
-
-    // Check transaction velocity for suspicious activity
-    const velocityCheck = allTransactions.filter(
-      (t) =>
-        t.userId === transaction.userId &&
-        Math.abs(
-          new Date(t.timestamp).getTime() -
-            new Date(transaction.timestamp).getTime()
-        ) < 3600000
-    );
-
-    let score = 0;
-    if (similarTransactions.length > 3) score += 0.3;
-    if (velocityCheck.length > 5) score += 0.5;
-
-    return score;
-  };
-
-  const detectAnomalies = (
-    transaction: Transaction,
-    allTransactions: Transaction[]
-  ) => {
-    const userTransactions = allTransactions.filter(
-      (t) => t.userId === transaction.userId
-    );
-    const avgAmount =
-      userTransactions.reduce((sum, t) => sum + t.amount, 0) /
-      userTransactions.length;
-
-    const amountDeviation =
-      Math.abs(transaction.amount - avgAmount) / avgAmount;
-    const locationAnomaly =
-      transaction.location &&
-      !userTransactions
-        .slice(-10)
-        .some((t) => t.location === transaction.location)
-        ? 0.4
-        : 0;
-
-    return Math.min(amountDeviation * 0.3 + locationAnomaly, 1);
-  };
-
-  const runAdvancedAnalytics = async () => {
-    if (transactions.length < 100) return;
-
-    setIsAnalyzing(true);
-
-    const analyticsData = {
-      totalRisk: 0,
-      highRiskTransactions: 0,
-      patterns: {} as Record<string, number>,
-      anomalies: {} as Record<string, number>,
-      generatedAt: Date.now(),
-    };
-
-    transactions.forEach((transaction) => {
-      const risk = calculateRiskFactors(transaction, transactions);
-      const patterns = analyzeTransactionPatterns(transaction, transactions);
-      const anomalies = detectAnomalies(transaction, transactions);
-
-      analyticsData.totalRisk += risk;
-      if (risk > 0.7) analyticsData.highRiskTransactions++;
-
-      analyticsData.patterns[transaction.id] = patterns;
-      analyticsData.anomalies[transaction.id] = anomalies;
+    requestIdleCallback(() => {
+      const relatedTransactions = transactions
+        .filter(t => t.merchantName === transaction.merchantName || t.category === transaction.category || t.userId === transaction.userId)
+        .slice(0, 50); // Limit to 50 for performance
+      trackActivity("transaction_click");
+      console.log("Related transactions:", relatedTransactions.length);
     });
+  }, [transactions, trackActivity]);
 
-    setTimeout(() => {
-      setRiskAnalytics(analyticsData);
-      setIsAnalyzing(false);
-    }, 2000);
-  };
+  // Apply filters when transactions or filters change
+  useEffect(() => {
+    console.log(filters)
+    applyFilters(transactions, filters, filters?.searchTerm ?? '');
+  }, [transactions, filters, applyFilters]);
 
-  const getUniqueCategories = () => {
-    const categories = new Set<string>();
-    transactions.forEach((t) => categories.add(t.category));
-    return Array.from(categories);
-  };
+  // Run analytics on filtered transactions
+  useEffect(() => {
+    if (filteredTransactions.length > 1000) {
+      requestIdleCallback(() => runAdvancedAnalytics());
+    }
+  }, [filteredTransactions, runAdvancedAnalytics]);
 
   if (loading) {
-    return (
-      <div className="dashboard-loading">
-        <div className="loading-spinner"></div>
-        <p>Loading transactions...</p>
-      </div>
-    );
+    return <PageLoader />;
   }
 
+  const handleCloseTransactionView = () => {
+    setSelectedTransaction(null);
+    resultsSectionRef.current?.focus();
+  };
+
   return (
-    <div className="dashboard">
-      <div className="dashboard-header">
-        <h1>FinTech Dashboard</h1>
-        <div className="dashboard-stats">
-          <div className="stat-card">
-            <div className="stat-icon">
-              <DollarSign size={24} />
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">
-                ${summary ? summary.totalAmount.toLocaleString() : "0"}
-              </div>
-              <div className="stat-label">Total Amount</div>
-            </div>
-          </div>
+    <>
+      {
+        (loading && !filteredTransactions?.length) 
+        ? <PageLoader />
+        : (
+        <main className="dashboard"  aria-label="Transaction Dashboard">
+          
+          <DashboardNav />
+          
+          <section className="dashboard-wrapper">
+            <div className="dashboard-header">
+              <div className="dashboard-stats" role="region" aria-label="Transaction statistics">
+                <ViewCard 
+                  Icon={DollarSign} 
+                  value={summary?.totalAmount} 
+                  name="Total Amount"
+                  ariaLabel={`Total amount: ${summary?.totalAmount || 0}`}
+                />
+                <ViewCard 
+                  Icon={TrendingUp} 
+                  value={summary?.totalCredits} 
+                  name="Total Credits" 
+                  ariaLabel={`Total credits: ${summary?.totalCredits || 0}`}
+                />
+                <ViewCard 
+                  Icon={TrendingDown} 
+                  value={summary?.totalDebits} 
+                  name="Total Debits"
+                  ariaLabel={`Total debits: ${summary?.totalDebits || 0}`}
+                />
+                <div className="stat-card" role="region" aria-label="Transaction count">
+                  <div className="stat-icon">
+                    <Clock size={24} aria-hidden="true" />
+                  </div>
+                  <div className="stat-content">
+                    <div className="stat-value">
+                      {filteredTransactions?.length.toLocaleString()}
+                      {filteredTransactions.length !== transactions.length && (
+                        <span className="stat-total"> of {formatTransactionCount(transactions?.length)}</span>
+                      )}
+                    </div>
 
-          <div className="stat-card">
-            <div className="stat-icon">
-              <TrendingUp size={24} />
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">
-                ${summary ? summary.totalCredits.toLocaleString() : "0"}
-              </div>
-              <div className="stat-label">Total Credits</div>
-            </div>
-          </div>
+                    <div className="stat-label" id="transaction-count-label">
+                      Transactions
+                      {
+                        isAnalyzing 
+                          ? <span> (Analyzing...)</span>
+                          : riskAnalytics 
+                          ? <span> - Risk: {riskAnalytics.highRiskTransactions}</span>
+                          : null
+                      }
+                    </div>
+                  </div>
+                  
+                  {loading ? <Loader value={progress} /> : null}
 
-          <div className="stat-card">
-            <div className="stat-icon">
-              <TrendingDown size={24} />
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">
-                ${summary ? summary.totalDebits.toLocaleString() : "0"}
-              </div>
-              <div className="stat-label">Total Debits</div>
-            </div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon">
-              <Clock size={24} />
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">
-                {filteredTransactions.length.toLocaleString()}
-                {filteredTransactions.length !== transactions.length && (
-                  <span className="stat-total">
-                    {" "}
-                    of {transactions.length.toLocaleString()}
-                  </span>
-                )}
-              </div>
-              <div className="stat-label">
-                Transactions
-                {isAnalyzing && <span> (Analyzing...)</span>}
-                {riskAnalytics && (
-                  <span> - Risk: {riskAnalytics.highRiskTransactions}</span>
-                )}
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
 
-      <div className="dashboard-controls">
-        <SearchBar onSearch={handleSearch} />
+            <section 
+            // ref={searchSectionRef}
+            tabIndex={-1}
+            aria-label="Search and filter controls"
+            className="dashboard-controls">
+              <ErrorBoundary>
+                <SearchBar onSearch={handleSearch} />
+              </ErrorBoundary>
 
-        <div className="filter-controls">
-          <select
-            value={filters.type || "all"}
-            onChange={(e) =>
-              handleFilterChange({
-                ...filters,
-                type: e.target.value as "debit" | "credit" | "all",
-              })
-            }
-          >
-            <option value="all">All Types</option>
-            <option value="debit">Debit</option>
-            <option value="credit">Credit</option>
-          </select>
+              <nav
+              ref={filtersSectionRef}
+              tabIndex={-1}
+              aria-label="Transaction filters"
+              >
+                <TransactionFilters filters={filters} setFilters={setFilters} transactions={transactions} />
+              </nav>
+            </section>
 
-          <select
-            value={filters.status || "all"}
-            onChange={(e) =>
-              handleFilterChange({
-                ...filters,
-                status: e.target.value as
-                  | "pending"
-                  | "completed"
-                  | "failed"
-                  | "all",
-              })
-            }
-          >
-            <option value="all">All Status</option>
-            <option value="completed">Completed</option>
-            <option value="pending">Pending</option>
-            <option value="failed">Failed</option>
-          </select>
+            <section 
+            ref={resultsSectionRef}
+            tabIndex={-1}
+            aria-label="Transaction results"
+            aria-live="polite"
+            className="dashboard-content">
+              <ErrorBoundary>
+                <Suspense fallback={<LoadingTransaction />}>
+                  <TransactionList
+                    transactions={filteredTransactions?.slice(0, 500)}
+                    onTransactionClick={handleTransactionClick}
+                    totalTransactions={transactions?.length}
+                    userPreferences={userPreferences}
+                  />
+                </Suspense>
+              </ErrorBoundary>
+            </section>
 
-          <select
-            value={filters.category || ""}
-            onChange={(e) =>
-              handleFilterChange({ ...filters, category: e.target.value })
-            }
-          >
-            <option value="">All Categories</option>
-            {getUniqueCategories().map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="dashboard-content">
-        <TransactionList
-          transactions={filteredTransactions}
-          totalTransactions={transactions.length}
-          onTransactionClick={handleTransactionClick}
-        />
-      </div>
-
-      {selectedTransaction && (
-        <div className="transaction-detail-modal">
-          <div className="modal-content">
-            <h3>Transaction Details</h3>
-            <div className="transaction-details">
-              <p>
-                <strong>ID:</strong> {selectedTransaction.id}
-              </p>
-              <p>
-                <strong>Merchant:</strong> {selectedTransaction.merchantName}
-              </p>
-              <p>
-                <strong>Amount:</strong> ${selectedTransaction.amount}
-              </p>
-              <p>
-                <strong>Category:</strong> {selectedTransaction.category}
-              </p>
-              <p>
-                <strong>Status:</strong> {selectedTransaction.status}
-              </p>
-              <p>
-                <strong>Date:</strong>{" "}
-                {selectedTransaction.timestamp.toLocaleString()}
-              </p>
-            </div>
-            <button onClick={() => setSelectedTransaction(null)}>Close</button>
-          </div>
-        </div>
-      )}
-    </div>
+            {selectedTransaction && (
+              <Suspense fallback={<LoadingTransaction message="Loading transaction..." />}>
+                <TransactionView
+                  selectedTransaction={selectedTransaction}
+                  handleCloseTransactionView={handleCloseTransactionView}
+                />
+              </Suspense>
+            )}
+          </section>
+        </main>
+        )
+      }
+    </>
   );
 };

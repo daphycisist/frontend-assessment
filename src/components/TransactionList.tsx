@@ -1,223 +1,190 @@
-import React, { useState, useEffect } from "react";
-import { Transaction } from "../types/transaction";
-import { format } from "date-fns";
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { Transaction, UserPreferences } from "../types/transaction";
+import { TransactionItem } from "./TransactionItems";
+import { formatTransactionCount } from "../utils/helper";
+// import { FixedSizeList as List } from "react-window";
+// import { Virtuoso } from 'react-virtuoso';
 
 interface TransactionListProps {
   transactions: Transaction[];
   totalTransactions?: number;
   onTransactionClick: (transaction: Transaction) => void;
+  userPreferences: UserPreferences;
 }
 
-export const TransactionList: React.FC<TransactionListProps> = ({
+type PagesInfo = {
+  currentPage: number;
+  totalPages: number;
+  pagination: number;
+};
+
+const MemoizedTransactionItem = React.memo(TransactionItem);
+
+const TransactionList: React.FC<TransactionListProps> = ({
   transactions,
   totalTransactions,
   onTransactionClick,
+  userPreferences,
 }) => {
-  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  // const ITEM_HEIGHT = 50; // Verify with TransactionItem height
+  const [selectedItems, setSelectedItems] = useState<Record<string, boolean>>({});
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const [pages, setPages] = useState<PagesInfo>({
+    currentPage: 1,
+    totalPages: 0,
+    pagination: 0,
+  });
+  const { currentPage, totalPages, pagination } = pages;
 
+  // Throttle mouse events
+  const throttle = useCallback(<T extends (...args: any[]) => void>(fn: T, wait: number) => {
+    let lastCall = 0;
+    return (...args: Parameters<T>) => {
+      const now = Date.now();
+      if (now - lastCall >= wait) {
+        lastCall = now;
+        fn(...args);
+      }
+    };
+  }, []);
+
+  // Memoized paginated data
+  const paginatedData = useMemo(() => {
+    const itemsPerPage = userPreferences.itemsPerPage;
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    return transactions.slice(start, end);
+  }, [currentPage, transactions, userPreferences.itemsPerPage]);
+
+  // Update displayed transactions
   useEffect(() => {
-    // Pre-calculate formatted amounts for display optimization
-    const formattedTransactions = transactions.map((t) => {
-      return {
-        ...t,
-        formattedAmount: new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "USD",
-        }).format(t.amount),
-      };
-    });
+    const itemsPerPage = userPreferences.itemsPerPage;
+    const maxPages = Math.ceil((totalTransactions || transactions.length) / itemsPerPage);
+    setPages((prev) => ({ ...prev, totalPages: maxPages }));
+  }, [totalTransactions, userPreferences.itemsPerPage, transactions.length]);
 
-    setSelectedItems(new Set());
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      setSelectedItems({});
+      setHoveredItem(null);
+    };
+  }, []);
 
-    if (formattedTransactions.length > 0) {
-      localStorage.setItem(
-        "lastTransactionCount",
-        formattedTransactions.length.toString()
-      );
-    }
-  });
+  // Total amount
+  const totalAmount = useMemo(() => {
+    return paginatedData.reduce((sum, t) => sum + t.amount, 0);
+  }, [paginatedData]);
 
-  const handleItemClick = (transaction: Transaction) => {
-    const updatedSelected = new Set(selectedItems);
-    if (updatedSelected.has(transaction.id)) {
-      updatedSelected.delete(transaction.id);
-    } else {
-      updatedSelected.add(transaction.id);
-    }
-    setSelectedItems(updatedSelected);
-    onTransactionClick(transaction);
-  };
+  // Event handlers
+  const handleItemClick = useCallback(
+    (transaction: Transaction) => {
+      setSelectedItems((prev) => ({
+        ...prev,
+        [transaction.id]: !prev[transaction.id],
+      }));
+      onTransactionClick(transaction);
+    },
+    [onTransactionClick]
+  );
 
-  const handleMouseEnter = (id: string) => {
-    setHoveredItem(id);
-  };
+  const handleMouseEnter = useCallback(throttle((id: string) => setHoveredItem(id), 100), []);
+  const handleMouseLeave = useCallback(throttle(() => setHoveredItem(null), 100), []);
 
-  const handleMouseLeave = () => {
-    setHoveredItem(null);
-  };
+  const handlePage = useCallback(
+    (action: "next" | "prev", pageNumber = 1) => {
+      const adjusted = pageNumber <= 1 ? pageNumber : Math.abs(currentPage - pageNumber);
+      setPages((prev) => {
+        const nextPage = action === "next" ? Math.min(prev.currentPage + adjusted, totalPages) : Math.max(prev.currentPage - adjusted, 1);
+        const result = { ...prev, currentPage: nextPage };
+        if (nextPage >= pagination + 5 && pageNumber !== totalPages) {
+          result.pagination += 5;
+        } else if (nextPage <= pagination + 1) {
+          result.pagination -= result.pagination >= 5 ? 5 : 0;
+        }
+        return result;
+      });
+    },
+    [currentPage, totalPages, pagination]
+  );
 
-  const sortedTransactions = transactions.sort((a, b) => {
-    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-  });
+  const handlePageSelection = useCallback(
+    (selectedPage: number) => {
+      const current = currentPage;
+      if (selectedPage > current) handlePage("next", selectedPage);
+      else if (selectedPage <= current) handlePage("prev", selectedPage);
+    },
+    [currentPage, handlePage]
+  );
 
   return (
-    <div
-      className="transaction-list"
-      role="region"
-      aria-label="Transaction list"
-    >
+    <div className="transaction-list" role="region" aria-label="Transaction list" data-testid="transaction-list">
       <div className="transaction-list-header">
-        <h2 id="transaction-list-title">
-          Transactions ({transactions.length}
-          {totalTransactions && totalTransactions !== transactions.length && (
-            <span> of {totalTransactions}</span>
-          )}
-          )
-        </h2>
+        <div className="transaction-list-pagination-wrapper">
+          <h2 id="transaction-list-title">
+            Transactions ({formatTransactionCount(totalTransactions || paginatedData.length)})
+          </h2>
+          <div className="transaction-list-pagination">
+            {[...Array(totalPages).keys()].slice(pagination, pagination + 5).map((page, i) => (
+              <span
+                key={i}
+                className={`${page + 1 === currentPage ? "active" : ""}`}
+                onClick={() => handlePageSelection(page + 1)}
+              >
+                {page + 1}
+              </span>
+            ))}
+            <span>
+              <i>of</i> {totalPages}
+            </span>
+          </div>
+        </div>
         <span className="total-amount" aria-live="polite">
           Total:{" "}
-          {new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
-          }).format(transactions.reduce((sum, t) => sum + t.amount, 0))}
+          {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(totalAmount)}
         </span>
       </div>
 
       <div
-        className="transaction-list-container"
-        role="grid"
-        aria-labelledby="transaction-list-title"
-        aria-rowcount={sortedTransactions.length}
-        tabIndex={0}
-      >
-        {sortedTransactions.map((transaction, index) => (
-          <TransactionItem
-            key={transaction.id}
-            transaction={transaction}
-            isSelected={selectedItems.has(transaction.id)}
-            isHovered={hoveredItem === transaction.id}
-            onClick={() => handleItemClick(transaction)}
-            onMouseEnter={() => handleMouseEnter(transaction.id)}
-            onMouseLeave={handleMouseLeave}
-            rowIndex={index}
-          />
-        ))}
-      </div>
-    </div>
-  );
-};
-
-const TransactionItem: React.FC<{
-  transaction: Transaction;
-  isSelected: boolean;
-  isHovered: boolean;
-  onClick: () => void;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
-  rowIndex: number;
-}> = ({
-  transaction,
-  isSelected,
-  isHovered,
-  onClick,
-  onMouseEnter,
-  onMouseLeave,
-  rowIndex,
-}) => {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount);
-  };
-
-  const formatDate = (date: Date) => {
-    return format(date, "MMM dd, yyyy HH:mm");
-  };
-
-  const getItemStyle = () => {
-    const baseStyle = {
-      backgroundColor: isSelected ? "#e3f2fd" : "#ffffff",
-      borderColor: isHovered ? "#2196f3" : "#e0e0e0",
-      transform: isHovered ? "translateY(-1px)" : "translateY(0)",
-      boxShadow: isHovered
-        ? "0 4px 8px rgba(0,0,0,0.1)"
-        : "0 2px 4px rgba(0,0,0,0.05)",
-    };
-
-    if (transaction.type === "debit") {
-      return {
-        ...baseStyle,
-        borderLeft: "4px solid #f44336",
-      };
-    } else {
-      return {
-        ...baseStyle,
-        borderLeft: "4px solid #4caf50",
-      };
-    }
-  };
-
-  return (
-    <div
-      className="transaction-item"
-      style={getItemStyle()}
-      onClick={onClick}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-      role="gridcell"
-      aria-rowindex={rowIndex + 1}
-      aria-selected={isSelected}
-      aria-describedby={`transaction-${transaction.id}-details`}
-      tabIndex={0}
-    >
-      <div className="transaction-main">
-        <div className="transaction-merchant">
-          <span className="merchant-name">{transaction.merchantName}</span>
-          <span className="transaction-category">{transaction.category}</span>
-        </div>
-        <div className="transaction-amount">
-          <span className={`amount ${transaction.type}`}>
-            {transaction.type === "debit" ? "-" : "+"}
-            {formatCurrency(transaction.amount)}
-          </span>
-        </div>
-      </div>
-      <div
-        className="transaction-details"
-        id={`transaction-${transaction.id}-details`}
-      >
-        <div
-          className="transaction-description"
-          aria-label={`Description: ${transaction.description}`}
+          className="transaction-list-container"
+          role="grid"
+          aria-labelledby="transaction-list-title"
+          aria-rowcount={userPreferences.itemsPerPage}
+          tabIndex={0}
         >
-          {transaction.description}
+          {paginatedData?.map((transaction, index) => (
+            // {/* <Virtuoso 
+            // style={{ height: 400 }}
+            // data={paginatedData}
+            // itemContent={(index, transaction) => ( */}
+              <MemoizedTransactionItem
+                key={transaction.id}
+                transaction={transaction}
+                isSelected={selectedItems[transaction.id]}
+                isHovered={hoveredItem === transaction.id}
+                onClick={() => handleItemClick(transaction)}
+                onMouseEnter={() => handleMouseEnter(transaction.id)}
+                onMouseLeave={handleMouseLeave}
+                rowIndex={index}
+              />
+            // )}
+            // />
+          ))}
+  
+          {/* <div ref={observerRef as React.LegacyRef<HTMLDivElement>}></div> */}
         </div>
-        <div className="transaction-meta">
-          <span
-            className="transaction-date"
-            aria-label={`Date: ${formatDate(transaction.timestamp)}`}
-          >
-            {formatDate(transaction.timestamp)}
-          </span>
-          <span
-            className={`transaction-status ${transaction.status}`}
-            aria-label={`Status: ${transaction.status}`}
-            aria-live="polite"
-          >
-            {transaction.status}
-          </span>
-          {transaction.location && (
-            <span
-              className="transaction-location"
-              aria-label={`Location: ${transaction.location}`}
-            >
-              {transaction.location}
-            </span>
-          )}
-        </div>
+
+      <div className="page-counter">
+        <button onClick={() => handlePage("prev")} disabled={currentPage === 1}>
+          {"<"}
+        </button>
+        <button onClick={() => handlePage("next")} disabled={currentPage === totalPages}>
+          {">"}
+        </button>
       </div>
     </div>
   );
 };
+export default TransactionList;

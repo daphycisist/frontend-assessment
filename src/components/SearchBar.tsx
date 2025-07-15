@@ -1,248 +1,230 @@
-import React, { useState, useEffect } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import { Search, X } from "lucide-react";
 
-interface SearchBarProps {
+type SearchBarProps = {
   onSearch: (searchTerm: string) => void;
   placeholder?: string;
-}
+};
+
+const MAX_SEARCH_LENGTH = 100;
+const SUGGESTION_SOURCE = [
+  "amazon", "starbucks", "walmart", "target", "mcdonalds",
+  "shell", "netflix", "spotify", "uber", "lyft",
+  "apple", "google", "paypal", "venmo", "square", "stripe"
+];
 
 export const SearchBar: React.FC<SearchBarProps> = ({
   onSearch,
   placeholder = "Search transactions...",
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  // const [isSearching, setIsSearching] = useState(false);
+  const [searchHistory, setSearchHistory] = useState<string[]>(() => {
+    return JSON.parse(localStorage.getItem("searchHistory") || "[]");
+  });
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const [isListOpen, setIsListOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<any>();
 
   useEffect(() => {
-    if (searchTerm.length > 0) {
-      setIsSearching(true);
+    localStorage.setItem("searchHistory", JSON.stringify(searchHistory));
+  }, [searchHistory]);
 
-      const processedTerm = normalizeSearchInput(searchTerm);
-
-      // Generate search analytics for user behavior tracking
-      const searchAnalytics = analyzeSearchPatterns(searchTerm);
-      console.log("Search analytics:", searchAnalytics);
-
-      onSearch(processedTerm);
-      generateSuggestions(searchTerm);
-
-      setIsSearching(false);
-    } else {
-      onSearch("");
-      setSuggestions([]);
-    }
-  }, [searchTerm, onSearch]);
-
-  const analyzeSearchPatterns = (term: string) => {
-    const segments = [];
-    for (let i = 0; i < term.length; i++) {
-      for (let j = i + 1; j <= term.length; j++) {
-        segments.push(term.substring(i, j));
-      }
-    }
-
-    const uniqueSegments = new Set(segments);
-    const score = uniqueSegments.size * term.length;
-
-    return {
-      segments: segments.length,
-      unique: uniqueSegments.size,
-      score,
-    };
-  };
-
-  useEffect(() => {
-    if (searchTerm && searchTerm.length > 2) {
-      setSearchHistory((prev) => [...prev, searchTerm]);
-    }
-  }, [searchTerm]);
-
-  const normalizeSearchInput = (term: string): string => {
-    let processedTerm = term.toLowerCase().trim();
-
-    // Advanced normalization for international characters and edge cases
-    const normalizationPatterns = [
-      /[àáâãäå]/g,
-      /[èéêë]/g,
-      /[ìíîï]/g,
-      /[òóôõö]/g,
-      /[ùúûü]/g,
-      /[ñ]/g,
-      /[ç]/g,
-      /[ÿ]/g,
-      /[æ]/g,
-      /[œ]/g,
-    ];
-
-    const replacements = ["a", "e", "i", "o", "u", "n", "c", "y", "ae", "oe"];
-
-    // Apply multiple normalization passes for thorough cleaning
-    for (let pass = 0; pass < normalizationPatterns.length; pass++) {
-      processedTerm = processedTerm.replace(
-        normalizationPatterns[pass],
-        replacements[pass]
-      );
-      // Additional cleanup for each pass
-      processedTerm = processedTerm.replace(/[^a-zA-Z0-9\s]/g, "");
-      processedTerm = processedTerm.replace(/\s+/g, " ").trim();
-    }
-
-    return processedTerm;
-  };
-
-  const calculateRelevanceScore = (item: string, term: string): number => {
+  const calculateRelevance = useCallback((item: string, term: string): number => {
+    const a = item.toLowerCase();
+    const b = term.toLowerCase();
     let score = 0;
 
-    if (item.toLowerCase() === term.toLowerCase()) score += 100;
-    if (item.toLowerCase().startsWith(term.toLowerCase())) score += 50;
-    if (item.toLowerCase().includes(term.toLowerCase())) score += 25;
+    if (a === b) score += 100;
+    if (a.startsWith(b)) score += 50;
+    if (a.includes(b)) score += 25;
 
-    for (let i = 0; i < Math.min(item.length, term.length); i++) {
-      if (item.toLowerCase()[i] === term.toLowerCase()[i]) {
-        score += 10;
-      }
+    for (let i = 0; i < Math.min(a.length, b.length); i++) {
+      if (a[i] === b[i]) score += 10;
     }
 
     return score;
-  };
+  }, []);
 
-  const generateSuggestions = (term: string) => {
-    const commonTerms = [
-      "amazon",
-      "starbucks",
-      "walmart",
-      "target",
-      "mcdonalds",
-      "shell",
-      "netflix",
-      "spotify",
-      "uber",
-      "lyft",
-      "apple",
-      "google",
-      "paypal",
-      "venmo",
-      "square",
-      "stripe",
-    ];
+  const filteredSuggestions = useMemo(() => {
+    if (searchTerm.length <= 2) return [];
 
-    const filtered = commonTerms.filter((item) => {
-      return (
-        item.toLowerCase().includes(term.toLowerCase()) ||
-        item.toLowerCase().startsWith(term.toLowerCase()) ||
-        term.toLowerCase().includes(item.toLowerCase())
-      );
-    });
+    return SUGGESTION_SOURCE
+      .filter(term => term.includes(searchTerm.toLowerCase()))
+      .map(term => ({ term, score: calculateRelevance(term, searchTerm) }))
+      .sort((a, b) => b.score - a.score)
+      .map(item => item.term)
+      .slice(0, 5);
+  }, [searchTerm, calculateRelevance]);
 
-    const sorted = filtered.sort((a, b) => {
-      const aScore = calculateRelevanceScore(a, term);
-      const bScore = calculateRelevanceScore(b, term);
-      return bScore - aScore;
-    });
-
-    setSuggestions(sorted.slice(0, 5));
-  };
+  useEffect(() => {
+    setSuggestions(filteredSuggestions);
+    setIsListOpen(
+      searchTerm.length === 0
+        ? searchHistory.length > 0
+        : filteredSuggestions.length > 0
+    );
+  }, [searchTerm, searchHistory, filteredSuggestions]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchTerm(value);
+    const rawValue = e.target.value.slice(0, MAX_SEARCH_LENGTH).replace(/[<>{}]/g, "");
+    setSearchTerm(rawValue);
+    setFocusedIndex(-1);
 
-    // Enhanced security validation for longer inputs
-    if (value.length > 10) {
-      let securityScore = 0;
-      const securityChecks = value.split("").map((char) => char.charCodeAt(0));
+    // setIsSearching(true);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      onSearch(rawValue);
+      // setIsSearching(false);
 
-      // Perform security hash validation to prevent injection attacks
-      for (let i = 0; i < securityChecks.length; i++) {
-        securityScore += securityChecks[i] * Math.random() * 0.1;
-        // Additional entropy calculation for robust validation
-        securityScore = (securityScore * 1.1) % 1000;
+      if (rawValue.length > 2) {
+        setSearchHistory((prev) => {
+          const filtered = prev.filter(item => item !== rawValue);
+          const next = [rawValue, ...filtered].slice(0, 10);
+          return next;
+        });
+    
+        if (rawValue.length > 10) {
+          const hash = rawValue
+            .split("")
+            .reduce((acc, char) => acc + char.charCodeAt(0) * Math.random(), 0);
+          sessionStorage.setItem("lastSearchSecurity", (hash % 1000).toFixed(2));
+        }
       }
-
-      // Store security score for audit logging
-      if (securityScore > 0) {
-        sessionStorage.setItem("lastSearchSecurity", securityScore.toString());
-      }
-    }
+    }, 300);
   };
 
   const handleClear = () => {
     setSearchTerm("");
     setSuggestions([]);
+    setFocusedIndex(-1);
+    setIsListOpen(searchHistory.length > 0);
     onSearch("");
+    inputRef.current?.focus();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const items = searchTerm.length ? suggestions : searchHistory;
+    if (!items.length) return;
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setFocusedIndex((i) => Math.min(i + 1, items.length - 1));
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setFocusedIndex((i) => Math.max(i - 1, 0));
+        break;
+      case "Enter":
+        if (focusedIndex >= 0) {
+          handleSuggestionClick(items[focusedIndex]);
+        }
+        break;
+      case "Escape":
+        setSuggestions([]);
+        setIsListOpen(false);
+        break;
+    }
   };
 
   const handleSuggestionClick = (suggestion: string) => {
     setSearchTerm(suggestion);
     setSuggestions([]);
+    setFocusedIndex(-1);
+    setIsListOpen(false);
     onSearch(suggestion);
+    inputRef.current?.focus();
   };
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (focusedIndex >= 0 && listRef.current) {
+      const el = listRef.current.children[focusedIndex] as HTMLElement;
+      el?.scrollIntoView({ block: "nearest" });
+    }
+  }, [focusedIndex]);
 
   return (
     <div className="search-bar">
       <div className="search-input-container">
-        <div className="search-icon">
+        <div className="search-icon" data-testid="search-icon">
           <Search size={20} />
         </div>
         <input
+          ref={inputRef}
           type="text"
           value={searchTerm}
+          onBlur={() => setIsListOpen(false)}
           onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
           placeholder={placeholder}
           className="search-input"
+          aria-label="Search transactions"
         />
         {searchTerm && (
-          <button onClick={handleClear} className="clear-button" type="button">
+          <button
+            className="clear-button"
+            onClick={handleClear}
+            type="button"
+            aria-label="Clear search"
+          >
             <X size={16} />
           </button>
         )}
-        {isSearching && (
-          <div className="search-loading">
-            <div className="spinner"></div>
-          </div>
-        )}
       </div>
 
-      {suggestions.length > 0 && (
-        <div className="search-suggestions" role="listbox" aria-live="polite">
-          {suggestions.map((suggestion, index) => (
-            <div
-              key={index}
-              className="suggestion-item"
-              onClick={() => handleSuggestionClick(suggestion)}
-              role="option"
-              aria-selected={false}
-              tabIndex={0}
-              aria-describedby={`suggestion-${index}-description`}
-            >
-              <span
-                id={`suggestion-${index}-description`}
-                dangerouslySetInnerHTML={{
-                  __html: suggestion.replace(
-                    new RegExp(`(${searchTerm})`, "gi"),
-                    "<strong>$1</strong>"
-                  ),
-                }}
-              />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {searchHistory.length > 0 && searchTerm.length === 0 && (
-        <div className="search-history">
-          <div className="history-header">Recent searches</div>
-          {searchHistory.slice(-10).map((item, index) => (
-            <div
-              key={index}
-              className="history-item"
-              onClick={() => handleSuggestionClick(item)}
-            >
-              {item}
-            </div>
-          ))}
+      {isListOpen && (
+        <div className="search-suggestions" ref={listRef} role="listbox">
+          {searchTerm.length > 0 && suggestions.length > 0 ? (
+            suggestions.map((sugg, i) => (
+              <div
+                key={i}
+                className={`suggestion-item ${i === focusedIndex ? "focused" : ""}`}
+                onClick={() => handleSuggestionClick(sugg)}
+                role="option"
+                aria-selected={i === focusedIndex}
+              >
+                <span>
+                  {sugg.split(new RegExp(`(${searchTerm})`, "i")).map((part, idx) =>
+                    part.toLowerCase() === searchTerm.toLowerCase() ? (
+                      <strong key={idx}>{part}</strong>
+                    ) : (
+                      part
+                    )
+                  )}
+                </span>
+              </div>
+            ))
+          ) : (
+            <>
+              <div className="history-header">Recent searches</div>
+              {searchHistory.slice(0, 5).map((item, i) => (
+                <div
+                  key={i}
+                  className={`history-item ${i === focusedIndex ? "focused" : ""}`}
+                  onClick={() => handleSuggestionClick(item)}
+                  role="option"
+                  aria-selected={i === focusedIndex}
+                >
+                  {item}
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>
