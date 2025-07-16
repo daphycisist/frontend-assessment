@@ -27,7 +27,7 @@ export const HeaderStats: React.FC<HeaderStatsProps> = ({
             <DollarSign size={24} />
           </div>
           <div className="stat-content">
-            <div className="stat-value">
+            <div className="stat-value" aria-live="polite">
               {summary ? (
                 `$${summary.totalAmount.toLocaleString()}`
               ) : (
@@ -45,7 +45,7 @@ export const HeaderStats: React.FC<HeaderStatsProps> = ({
             <TrendingUp size={24} />
           </div>
           <div className="stat-content">
-            <div className="stat-value">
+            <div className="stat-value" aria-live="polite">
               {summary ? (
                 `$${summary.totalCredits.toLocaleString()}`
               ) : (
@@ -63,7 +63,7 @@ export const HeaderStats: React.FC<HeaderStatsProps> = ({
             <TrendingDown size={24} />
           </div>
           <div className="stat-content">
-            <div className="stat-value">
+            <div className="stat-value" aria-live="polite">
               {summary ? (
                 `$${summary.totalDebits.toLocaleString()}`
               ) : (
@@ -81,7 +81,7 @@ export const HeaderStats: React.FC<HeaderStatsProps> = ({
             <Clock size={24} />
           </div>
           <div className="stat-content">
-            <div className="stat-value">
+            <div className="stat-value" aria-live="polite">
               {filteredCount.toLocaleString()}
               {filteredCount !== totalCount && (
                 <span className="stat-total"> of {totalCount.toLocaleString()}</span>

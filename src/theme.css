@@ -309,6 +309,19 @@ body.dark .transaction-category {
   color: var(--text);
 }
 
+body.dark .transaction-status.completed {
+  background: #2e7d32;
+  color: #fff;
+}
+body.dark .transaction-status.pending {
+  background: #f57c00;
+  color: #fff;
+}
+body.dark .transaction-status.failed {
+  background: #c62828;
+  color: #fff;
+}
+
 @media (min-width: 900px) {
   .dashboard-stats {
     display: grid;
