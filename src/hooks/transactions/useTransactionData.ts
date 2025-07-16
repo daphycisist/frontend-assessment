@@ -84,8 +84,6 @@ export function useTransactionData() {
 			category: "",
 			searchTerm: "",
 		})
-
-		setFilteredTransactions(transactions)
 	}
 
 	useEffect(() => {

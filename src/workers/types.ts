@@ -1,4 +1,4 @@
-import { FilterOptions, Transaction, TransactionSummary } from "../types/transaction"
+import { FilterOptions, Transaction } from "../types/transaction"
 import { UserPreference } from "../types/user"
 import type { generateRiskAssessment } from "../utils/analyticsEngine"
 import { generateTransactionData, calculateSummary } from "../utils/dataGenerator"
