@@ -60,7 +60,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
 			style: "currency",
 			currency: "USD",
 		}).format(transactions.reduce((sum, t) => sum + t.amount, 0))
-	}, [])
+	}, [transactions])
 
 	const Row = useCallback(
 		({ index, style }: { index: number; style: React.CSSProperties }) => {
