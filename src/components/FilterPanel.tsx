@@ -8,6 +8,7 @@ interface FilterPanelProps {
   onFilterChange: (filters: FilterOptions) => void;
   onSearch: (term: string) => void;
   categories: string[];
+  inputRef?: React.Ref<HTMLInputElement>;
 }
 
 export const FilterPanel: React.FC<FilterPanelProps> = ({
@@ -15,10 +16,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   onFilterChange,
   onSearch,
   categories,
+  inputRef,
 }) => {
   return (
     <div className="dashboard-controls">
-      <SearchBar onSearch={onSearch} />
+      <SearchBar onSearch={onSearch} inputRef={inputRef} />
 
       <div className="filter-controls">
         <select

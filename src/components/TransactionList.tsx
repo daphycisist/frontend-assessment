@@ -20,6 +20,8 @@ export const TransactionList: React.FC<TransactionListProps> = ({
 }) => {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const [activeIndex, setActiveIndex] = useState<number>(0);
+  const listRef = React.useRef<RWFixedSizeList>(null);
 
   useEffect(() => {
     // store count for dev debugging, only when list length changes
@@ -38,14 +40,6 @@ export const TransactionList: React.FC<TransactionListProps> = ({
     onTransactionClick(transaction);
   };
 
-  const handleMouseEnter = (id: string) => {
-    setHoveredItem(id);
-  };
-
-  const handleMouseLeave = () => {
-    setHoveredItem(null);
-  };
-
   const sortedTransactions = useMemo(() => {
     return [...transactions].sort(
       (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
@@ -61,10 +55,13 @@ export const TransactionList: React.FC<TransactionListProps> = ({
           key={transaction.id}
           transaction={transaction}
           isSelected={selectedItems.has(transaction.id)}
-          isHovered={hoveredItem === transaction.id}
+          isHovered={activeIndex === index}
           onClick={() => handleItemClick(transaction)}
-          onMouseEnter={() => handleMouseEnter(transaction.id)}
-          onMouseLeave={handleMouseLeave}
+          onMouseEnter={() => {
+            setHoveredItem(transaction.id);
+            setActiveIndex(index);
+          }}
+          onMouseLeave={() => {}}
           rowIndex={index}
         />
       </div>
@@ -81,22 +78,26 @@ export const TransactionList: React.FC<TransactionListProps> = ({
       onKeyDown={(e) => {
         if (e.key === 'ArrowDown') {
           e.preventDefault();
-          setHoveredItem((prev) => {
-            const currentIndex = sortedTransactions.findIndex((t) => t.id === prev);
-            const nextIndex = Math.min(currentIndex + 1, sortedTransactions.length - 1);
-            return sortedTransactions[nextIndex]?.id ?? prev;
+          setActiveIndex((prevIdx) => {
+            const nextIndex = Math.min(prevIdx + 1, sortedTransactions.length - 1);
+            listRef.current?.scrollToItem(nextIndex, 'smart');
+            setHoveredItem(sortedTransactions[nextIndex]?.id);
+            return nextIndex;
           });
         }
         if (e.key === 'ArrowUp') {
           e.preventDefault();
-          setHoveredItem((prev) => {
-            const currentIndex = sortedTransactions.findIndex((t) => t.id === prev);
-            const prevIndex = Math.max(currentIndex - 1, 0);
-            return sortedTransactions[prevIndex]?.id ?? prev;
+          setActiveIndex((prevIdx) => {
+            const newIndex = Math.max(prevIdx - 1, 0);
+            listRef.current?.scrollToItem(newIndex, 'smart');
+            setHoveredItem(sortedTransactions[newIndex]?.id);
+            return newIndex;
           });
         }
-        if (e.key === 'Enter') {
-          const current = sortedTransactions.find((t) => t.id === hoveredItem);
+        if (e.key === 'Enter' || e.key === 'Return') {
+          const current = hoveredItem
+            ? sortedTransactions.find((t) => t.id === hoveredItem)
+            : sortedTransactions[activeIndex];
           if (current) onTransactionClick(current);
         }
       }}
@@ -126,6 +127,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
         tabIndex={0}
       >
         <FixedSizeList
+          ref={listRef as unknown as React.Ref<RWFixedSizeList>}
           height={600}
           itemCount={sortedTransactions.length}
           itemSize={200}

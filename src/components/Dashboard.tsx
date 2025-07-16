@@ -45,8 +45,24 @@ export const Dashboard: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const workerRef = React.useRef<Worker | null>(null);
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
+  const listContainerRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      if (e.key === '/' && !e.ctrlKey) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+      if (e.key.toLowerCase() === 'l' && !e.ctrlKey) {
+        e.preventDefault();
+        const listEl = listContainerRef.current?.querySelector('.transaction-list') as HTMLElement;
+        if (listEl) listEl.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKey);
+
     workerRef.current = new RiskWorker();
 
     const handleMessage = (e: MessageEvent<RiskAnalytics>) => {
@@ -59,6 +75,7 @@ export const Dashboard: React.FC = () => {
     return () => {
       workerRef.current?.removeEventListener('message', handleMessage);
       workerRef.current?.terminate();
+      window.removeEventListener('keydown', handleGlobalKey);
     };
   }, []);
 
@@ -103,9 +120,10 @@ export const Dashboard: React.FC = () => {
         onFilterChange={handleFilterChange}
         onSearch={handleSearch}
         categories={getUniqueCategories()}
+        inputRef={searchInputRef}
       />
 
-      <div className="dashboard-content">
+      <div className="dashboard-content" ref={listContainerRef} tabIndex={-1}>
         <ErrorBoundary>
           <TransactionList
             transactions={filteredTransactions}

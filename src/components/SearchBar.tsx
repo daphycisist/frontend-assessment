@@ -5,11 +5,13 @@ import debounce from 'lodash.debounce';
 interface SearchBarProps {
   onSearch: (searchTerm: string) => void;
   placeholder?: string;
+  inputRef?: React.Ref<HTMLInputElement>;
 }
 
 export const SearchBar: React.FC<SearchBarProps> = ({
   onSearch,
   placeholder = 'Search transactions...',
+  inputRef,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -201,6 +203,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           onChange={handleInputChange}
           placeholder={placeholder}
           className="search-input"
+          ref={inputRef}
         />
         {searchTerm && (
           <button onClick={handleClear} className="clear-button" type="button">
