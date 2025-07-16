@@ -199,6 +199,17 @@ body {
   }
 }
 
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .search-suggestions,
 .search-history {
   position: absolute;
@@ -498,4 +509,22 @@ body {
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+@media (max-width: 480px) {
+	.dashboard-header h1 {
+		font-size: 1.5rem;
+	}
+
+	.stat-value {
+		font-size: 1.5rem;
+	}
+
+	.transaction-list-header h2 {
+		font-size: 1.2rem;
+	}
+
+	.total-amount {
+		font-size: 1rem;
+	}
 }
