@@ -50,13 +50,18 @@ function setupWorkerListener() {
 	}
 
 	worker.addEventListener("message", (event: MessageEvent<WorkerResult>) => {
-		const { callId, result, error } = event.data
+		const { callId, result, error, metadata } = event.data
 
 		const callInfo = callInfoMap.get(callId)
 
 		if (!callInfo) {
 			return
 		}
+		console.log(
+			metadata?.elapsedTime
+				? `Worker call ${metadata.method} completed in ${metadata.elapsedTime}ms`
+				: `Worker call ${callId} completed`
+		)
 
 		if (error) {
 			callInfo.onError(error)

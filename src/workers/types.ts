@@ -52,6 +52,7 @@ export type WorkerResult = {
 	callId: string
 	result?: any
 	error?: any
+	metadata?: Record<string, any>
 }
 
 export type CallInfo = {

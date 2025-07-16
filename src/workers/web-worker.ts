@@ -12,6 +12,7 @@ self.onmessage = (event: MessageEvent<WorkerCall<any>>) => {
 
 	let workerResult: WorkerResult
 
+	const now = performance.now()
 	switch (method) {
 		case "generateRiskAssessment": {
 			const methodResult = generateRiskAssessment(
@@ -23,8 +24,7 @@ self.onmessage = (event: MessageEvent<WorkerCall<any>>) => {
 				result: methodResult,
 			}
 
-			self.postMessage(workerResult)
-			return
+			break
 		}
 		case "getAdvancedAnalytics": {
 			const analyticsResult = getAdvancedAnalytics(
@@ -36,8 +36,7 @@ self.onmessage = (event: MessageEvent<WorkerCall<any>>) => {
 				result: analyticsResult,
 			}
 
-			self.postMessage(workerResult)
-			return
+			break
 		}
 		case "generateTransactionData": {
 			const transactionData = generateTransactionData(
@@ -49,8 +48,7 @@ self.onmessage = (event: MessageEvent<WorkerCall<any>>) => {
 				result: transactionData,
 			}
 
-			self.postMessage(workerResult)
-			return
+			break
 		}
 		case "calculateSummary": {
 			const summary = calculateSummary(...(parameters as WorkerMethodParams<"calculateSummary">))
@@ -60,8 +58,7 @@ self.onmessage = (event: MessageEvent<WorkerCall<any>>) => {
 				result: summary,
 			}
 
-			self.postMessage(workerResult)
-			return
+			break
 		}
 
 		case "searchTransactions": {
@@ -72,21 +69,26 @@ self.onmessage = (event: MessageEvent<WorkerCall<any>>) => {
 				callId,
 				result: searchResults,
 			}
-			self.postMessage(workerResult)
-			return
+			break
 		}
 		case "getFilteredTransactions": {
 			const filteredTransactions = getFilteredTransactions(
 				...(parameters as WorkerMethodParams<"getFilteredTransactions">)
 			)
+
 			workerResult = {
 				callId,
 				result: filteredTransactions,
 			}
-			self.postMessage(workerResult)
-			return
+			break
 		}
 		default:
-			self.postMessage({ callId, error: new Error("Unknown method") })
+			workerResult = {
+				callId,
+				error: new Error(`Unknown method: ${method}`),
+			}
+			break
 	}
+	const elapsed = performance.now() - now
+	self.postMessage({ ...workerResult, metadata: { elapsedTime: elapsed, method: method } })
 }

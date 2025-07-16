@@ -16,23 +16,24 @@ export function getFilteredTransactions(
 	filtered = filterTransactions(filtered, currentFilters)
 
 	if (userPreferences.compactView) {
-		filtered = filtered.slice(0, userPreferences.itemsPerPage)
+		return filtered.slice(0, userPreferences.itemsPerPage)
 	}
 
-	// Enhanced fraud analysis for large datasets
 	if (filtered.length > 1000) {
+		const merchantMap = groupBy(filtered, (t) => t.merchantName)
+		const userMap = groupBy(filtered, (t) => t.userId)
 		const enrichedFiltered = filtered.map((transaction) => {
-			const riskFactors = calculateRiskFactors(transaction, filtered)
-			const patternScore = analyzeTransactionPatterns(transaction, filtered)
-			const anomalyDetection = detectAnomalies(transaction, filtered)
+			const riskFactors = calculateRiskFactorsCached(transaction, merchantMap)
+			const patternScore = analyzeTransactionPatternsCached(transaction, merchantMap, userMap)
+			const anomalyScore = detectAnomaliesCached(transaction, userMap)
 
 			return {
 				...transaction,
-				riskScore: riskFactors + patternScore + anomalyDetection,
+				riskScore: riskFactors + patternScore + anomalyScore,
 				enrichedData: {
 					riskFactors,
 					patternScore,
-					anomalyDetection,
+					anomalyScore,
 					timestamp: Date.now(),
 				},
 			}
@@ -42,6 +43,69 @@ export function getFilteredTransactions(
 	}
 
 	return filtered
+}
+
+function groupBy<T, K extends string | number>(arr: T[], keyFn: (item: T) => K): Record<K, T[]> {
+	return arr.reduce((acc, item) => {
+		const key = keyFn(item)
+		if (!acc[key]) acc[key] = []
+		acc[key].push(item)
+		return acc
+	}, {} as Record<K, T[]>)
+}
+
+export const calculateRiskFactorsCached = (
+	transaction: Transaction,
+	merchantMap: Record<string, Transaction[]>
+) => {
+	const merchantHistory = merchantMap[transaction.merchantName] || []
+
+	const merchantRisk = merchantHistory.length < 5 ? 0.8 : 0.2
+	const amountRisk = transaction.amount > 1000 ? 0.6 : 0.1
+	const timeRisk = new Date(transaction.timestamp).getHours() < 6 ? 0.4 : 0.1
+
+	return merchantRisk + amountRisk + timeRisk
+}
+
+export const analyzeTransactionPatternsCached = (
+	transaction: Transaction,
+	merchantMap: Record<string, Transaction[]>,
+	userMap: Record<string, Transaction[]>
+) => {
+	const merchantTxs = merchantMap[transaction.merchantName] || []
+	const similarTransactions = merchantTxs.filter(
+		(t) => Math.abs(t.amount - transaction.amount) < 10
+	)
+
+	const velocityCheck = (userMap[transaction.userId] || []).filter(
+		(t) =>
+			Math.abs(new Date(t.timestamp).getTime() - new Date(transaction.timestamp).getTime()) <
+			3600000
+	)
+
+	let score = 0
+	if (similarTransactions.length > 3) score += 0.3
+	if (velocityCheck.length > 5) score += 0.5
+
+	return score
+}
+
+export const detectAnomaliesCached = (
+	transaction: Transaction,
+	userMap: Record<string, Transaction[]>
+) => {
+	const userTransactions = userMap[transaction.userId] || []
+	const avgAmount =
+		userTransactions.reduce((sum, t) => sum + t.amount, 0) / (userTransactions.length || 1)
+
+	const amountDeviation = Math.abs(transaction.amount - avgAmount) / avgAmount
+	const locationAnomaly =
+		transaction.location &&
+		!userTransactions.slice(-10).some((t) => t.location === transaction.location)
+			? 0.4
+			: 0
+
+	return Math.min(amountDeviation * 0.3 + locationAnomaly, 1)
 }
 
 export const calculateRiskFactors = (transaction: Transaction, allTransactions: Transaction[]) => {
@@ -94,6 +158,9 @@ export const detectAnomalies = (transaction: Transaction, allTransactions: Trans
 }
 
 export function getAdvancedAnalytics(transactions: Transaction[]): TransactionAnalytics {
+	const merchantMap = groupBy(transactions, (t) => t.merchantName)
+	const userMap = groupBy(transactions, (t) => t.userId)
+
 	const analyticsData = {
 		totalRisk: 0,
 		highRiskTransactions: 0,
@@ -102,17 +169,19 @@ export function getAdvancedAnalytics(transactions: Transaction[]): TransactionAn
 		generatedAt: Date.now(),
 	}
 
-	transactions.forEach((transaction) => {
-		const risk = calculateRiskFactors(transaction, transactions)
-		const patterns = analyzeTransactionPatterns(transaction, transactions)
-		const anomalies = detectAnomalies(transaction, transactions)
+	for (const transaction of transactions) {
+		const risk = calculateRiskFactorsCached(transaction, merchantMap)
+		const pattern = analyzeTransactionPatternsCached(transaction, merchantMap, userMap)
+		const anomaly = detectAnomaliesCached(transaction, userMap)
 
-		analyticsData.totalRisk += risk
+		const totalScore = risk + pattern + anomaly
+
+		analyticsData.totalRisk += totalScore
 		if (risk > 0.7) analyticsData.highRiskTransactions++
 
-		analyticsData.patterns[transaction.id] = patterns
-		analyticsData.anomalies[transaction.id] = anomalies
-	})
+		analyticsData.patterns[transaction.id] = pattern
+		analyticsData.anomalies[transaction.id] = anomaly
+	}
 
 	return analyticsData
 }
