@@ -5,6 +5,7 @@ import { useUserContext } from '../contexts/UserContext';
 import { HeaderStats } from './HeaderStats';
 import { FilterPanel } from './FilterPanel';
 import { TransactionModal } from './TransactionModal';
+import { DarkModeToggle } from './DarkModeToggle';
 
 // @ts-ignore - vite worker import
 import RiskWorker from '../workers/riskWorker?worker';
@@ -19,7 +20,7 @@ type RiskAnalytics = {
 };
 
 export const Dashboard: React.FC = () => {
-  useUserContext(); // keep hook to retain provider check
+  useUserContext();
 
   const {
     transactions,
@@ -31,10 +32,8 @@ export const Dashboard: React.FC = () => {
     getUniqueCategories,
   } = useTransactions();
 
-  // useTransactions loads data synchronously
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
-  // Risk assessment and fraud detection analytics
   const [riskAnalytics, setRiskAnalytics] = useState<{
     totalRisk: number;
     highRiskTransactions: number;
@@ -44,7 +43,6 @@ export const Dashboard: React.FC = () => {
   } | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  // Ref to the risk worker
   const workerRef = React.useRef<Worker | null>(null);
 
   React.useEffect(() => {
@@ -63,62 +61,18 @@ export const Dashboard: React.FC = () => {
     };
   }, []);
 
-  // initial data load & auto-refresh are handled inside useTransactions hook
-
-  // Filtering side-effects handled inside useTransactions hook
+  // run analytics when data set is large
 
   useEffect(() => {
-    if (filteredTransactions.length > 0) {
-      // summary handled by hook
-    }
-
     if (filteredTransactions.length > 1000) {
       runAdvancedAnalytics();
     }
   }, [filteredTransactions]);
 
-  useEffect(() => {
-    const handleResize = () => {
-      /* placeholder if we want dynamic summary on resize later */
-    };
-
-    const handleScroll = () => {
-      console.log('Scrolling...', new Date().toISOString());
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === 'f') {
-        e.preventDefault();
-        // search handled by hook
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('scroll', handleScroll);
-    window.addEventListener('keydown', handleKeyDown);
-
-    // return () => {
-    //   window.removeEventListener('resize', handleResize);
-    //   window.removeEventListener('scroll', handleScroll);
-    //   window.removeEventListener('keydown', handleKeyDown);
-    // };
-  }, [transactions, filteredTransactions]);
-
-  // applyFilters handled inside useTransactions; local copy removed
-
-  // handleSearch & handleFilterChange come from hook
+  // applyFilters handled inside useTransactions;
 
   const handleTransactionClick = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
-
-    const relatedTransactions = transactions.filter(
-      (t) =>
-        t.merchantName === transaction.merchantName ||
-        t.category === transaction.category ||
-        t.userId === transaction.userId,
-    );
-
-    console.log('Related transactions:', relatedTransactions.length);
   };
 
   const runAdvancedAnalytics = () => {
@@ -128,8 +82,6 @@ export const Dashboard: React.FC = () => {
     setIsAnalyzing(true);
     workerRef.current.postMessage(transactions);
   };
-
-  // getUniqueCategories comes from useTransactions hook
 
   return (
     <div className="dashboard">
@@ -142,6 +94,7 @@ export const Dashboard: React.FC = () => {
           isAnalyzing={isAnalyzing}
           highRiskTransactions={riskAnalytics?.highRiskTransactions}
         />
+        <DarkModeToggle />
       </div>
 
       <FilterPanel

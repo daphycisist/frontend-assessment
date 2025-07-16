@@ -1,0 +1,398 @@
+:root {
+  --bg: #f5f5f5;
+  --text: #212121;
+  --primary: #1e88e5;
+  --accent-positive: #1b8f3b;
+  --accent-negative: #c62828;
+  --card-bg: #fafafa;
+  --card-border: #e0e0e0;
+}
+
+body.dark {
+  --bg: #181818;
+  --text: #e0e0e0;
+  --primary: #90caf9;
+  --accent-positive: #81c784;
+  --accent-negative: #ef9a9a;
+  --card-bg: #1e1e1e;
+  --card-border: #333;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  transition:
+    background 0.3s ease,
+    color 0.3s ease;
+  color-scheme: light dark;
+}
+
+.stat-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 160px;
+  flex: 1;
+  color: var(--text);
+}
+
+.stat-value {
+  font-size: clamp(1rem, 2.5vw, 1.35rem);
+  white-space: nowrap;
+}
+
+body.dark .stat-card {
+  background: #1e1e1e;
+  border-color: #444;
+  color: var(--text);
+}
+
+.stat-icon svg {
+  stroke: var(--primary);
+}
+
+/* layout container */
+.app-container {
+  width: 100%;
+  padding: 0 1rem;
+}
+
+.content-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+/* Filter controls alignment */
+.filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.filter-controls select,
+.search-input-container input {
+  height: 36px;
+  padding: 0 8px;
+  border-radius: 4px;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  color: var(--text);
+}
+
+.search-input-container {
+  flex: 1 1 300px;
+  max-width: 480px;
+}
+
+.skeleton-bar {
+  height: 20px;
+  width: 120px;
+  background: var(--card-border);
+  border-radius: 4px;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0.3;
+  }
+}
+
+.amount.credit {
+  color: var(--accent-positive);
+}
+
+.amount.debit {
+  color: var(--accent-negative);
+}
+
+.dark-toggle {
+  background: transparent;
+  border: 1px solid var(--card-border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  color: var(--text);
+}
+.dark-toggle:focus-visible {
+  outline: 2px solid var(--primary);
+}
+
+.dashboard {
+  background: transparent;
+  max-width: none !important;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.App {
+  background: var(--bg);
+}
+
+.content-inner {
+  max-width: none;
+  width: 100%;
+}
+
+.dashboard-stats {
+  width: 100%;
+}
+
+.dashboard-stats .stat-card {
+  width: 100%;
+}
+
+.dashboard .transaction-main {
+  align-items: center;
+}
+.dashboard .transaction-amount {
+  flex: 0 0 clamp(6rem, 10vw, 10rem);
+  text-align: right;
+}
+.dashboard .amount,
+.dashboard .stat-value {
+  font-feature-settings: 'tnum';
+}
+
+.transaction-item,
+.transaction-list,
+.dashboard-controls,
+.filter-controls select,
+.search-input {
+  background: var(--card-bg);
+  border-color: var(--card-border);
+  color: var(--text);
+}
+.transaction-item:hover,
+.transaction-item:focus-visible {
+  background: var(--card-bg);
+}
+
+body.dark .merchant-name,
+body.dark .stat-value,
+body.dark .stat-label,
+body.dark .transaction-description,
+body.dark .transaction-category,
+body.dark .transaction-date,
+body.dark .transaction-location {
+  color: var(--text);
+}
+
+body.dark .total-amount,
+body.dark .transaction-list-header h2 {
+  color: var(--text);
+}
+
+body.dark .stat-icon {
+  background: rgba(144, 202, 249, 0.15);
+}
+
+#root,
+.App {
+  width: 100%;
+}
+
+.dashboard-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.search-bar {
+  flex: 1 1 auto;
+  max-width: none;
+}
+
+@media (min-width: 1024px) {
+  .dashboard-controls {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: flex-end;
+  }
+
+  .filter-controls {
+    flex: 0 0 auto;
+  }
+}
+
+.search-input-container .search-icon {
+  right: 12px;
+  left: auto;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.search-input {
+  padding: 12px 44px 12px 12px;
+}
+
+.transaction-item,
+.transaction-item * {
+  color: var(--text);
+}
+
+.dashboard-header {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.dashboard-header .dark-toggle {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.5rem;
+}
+
+.dashboard-controls {
+  gap: 0.5rem;
+}
+
+.dashboard-controls > .filter-controls {
+  margin-top: 0 !important;
+}
+
+.dashboard .transaction-main {
+  align-items: flex-start;
+  flex-direction: row;
+}
+
+.filter-controls {
+  margin-top: 0;
+}
+
+.modal-content {
+  position: relative;
+}
+
+@media (max-width: 768px) {
+  .dashboard .transaction-main {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .search-bar {
+    flex: 0 0 auto;
+  }
+
+  .search-input-container {
+    max-width: none;
+  }
+}
+
+body.dark .dashboard-header h1 {
+  color: var(--text);
+}
+
+.transaction-item:focus {
+  outline: none;
+}
+
+body.dark .modal-content h3 {
+  color: var(--text);
+}
+body.dark .transaction-category {
+  background: var(--card-border);
+  color: var(--text);
+}
+
+@media (min-width: 900px) {
+  .dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+  }
+}
+
+.transaction-item {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 130px;
+}
+.transaction-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+.transaction-merchant {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.transaction-category {
+  margin-top: 0.25rem;
+}
+.transaction-description {
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+.transaction-meta {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+.transaction-status {
+  text-transform: uppercase;
+}
+.transaction-item:hover,
+.transaction-item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+.transaction-details {
+  border-top: 1px solid var(--card-border);
+}
+body.dark .transaction-details {
+  border-color: #333;
+}
+
+.modal-content {
+  width: auto;
+  max-width: 600px;
+}
+
+.modal-content h3 {
+  margin-bottom: 1rem;
+  font-size: 1.75rem;
+  font-weight: 600;
+}
+.modal-content .details-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  row-gap: 0.75rem;
+  column-gap: 1rem;
+  font-size: 0.95rem;
+}
+.modal-content .details-list dt {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.modal-content .details-list dd {
+  margin: 0;
+}
+
+body.dark .modal-content .details-list dt,
+body.dark .modal-content .details-list dd {
+  color: var(--text);
+}

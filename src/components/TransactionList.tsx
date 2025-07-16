@@ -80,7 +80,35 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   };
 
   return (
-    <div className="transaction-list" role="region" aria-label="Transaction list">
+    <div
+      className="transaction-list"
+      role="region"
+      aria-label="Transaction list"
+      aria-keyshortcuts="ArrowUp ArrowDown Enter"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setHoveredItem((prev) => {
+            const currentIndex = sortedTransactions.findIndex((t) => t.id === prev);
+            const nextIndex = Math.min(currentIndex + 1, sortedTransactions.length - 1);
+            return sortedTransactions[nextIndex]?.id ?? prev;
+          });
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setHoveredItem((prev) => {
+            const currentIndex = sortedTransactions.findIndex((t) => t.id === prev);
+            const prevIndex = Math.max(currentIndex - 1, 0);
+            return sortedTransactions[prevIndex]?.id ?? prev;
+          });
+        }
+        if (e.key === 'Enter') {
+          const current = sortedTransactions.find((t) => t.id === hoveredItem);
+          if (current) onTransactionClick(current);
+        }
+      }}
+    >
       <div className="transaction-list-header">
         <h2 id="transaction-list-title">
           Transactions ({transactions.length}
@@ -108,7 +136,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
         <FixedSizeList
           height={600}
           itemCount={sortedTransactions.length}
-          itemSize={80}
+          itemSize={200}
           width="100%"
         >
           {Row}
@@ -132,24 +160,28 @@ const TransactionItem: React.FC<{
   };
 
   const getItemStyle = () => {
-    const baseStyle = {
-      backgroundColor: isSelected ? '#e3f2fd' : '#ffffff',
-      borderColor: isHovered ? '#2196f3' : '#e0e0e0',
-      transform: isHovered ? 'translateY(-1px)' : 'translateY(0)',
-      boxShadow: isHovered ? '0 4px 8px rgba(0,0,0,0.1)' : '0 2px 4px rgba(0,0,0,0.05)',
-    };
+    const accentColor =
+      transaction.type === TxType.Debit ? 'var(--accent-negative)' : 'var(--accent-positive)';
 
-    if (transaction.type === TxType.Debit) {
+    const base = {
+      backgroundColor: 'var(--card-bg)',
+      borderRadius: '8px',
+      border: '1px solid var(--card-border)',
+      borderLeft: `4px solid ${accentColor}`,
+      padding: '16px',
+      marginBottom: '12px',
+    } as React.CSSProperties;
+
+    if (isHovered || isSelected) {
       return {
-        ...baseStyle,
-        borderLeft: '4px solid #f44336',
-      };
-    } else {
-      return {
-        ...baseStyle,
-        borderLeft: '4px solid #4caf50',
+        ...base,
+        border: `2px solid var(--primary)`,
+        borderLeft: `4px solid var(--primary)`,
+        padding: '15px', // compensate 1px delta each side
       };
     }
+
+    return base;
   };
 
   return (
@@ -198,11 +230,12 @@ const TransactionItem: React.FC<{
           >
             {transaction.status}
           </span>
-          {transaction.location && (
-            <span className="transaction-location" aria-label={`Location: ${transaction.location}`}>
-              {transaction.location}
-            </span>
-          )}
+          <span
+            className="transaction-location"
+            aria-label={`Location: ${transaction.location ?? 'N/A'}`}
+          >
+            {transaction.location ?? 'N/A'}
+          </span>
         </div>
       </div>
     </div>

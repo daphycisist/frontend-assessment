@@ -140,7 +140,6 @@ body {
 
 .search-icon {
   position: absolute;
-  left: 12px;
   color: #666;
   z-index: 1;
 }
@@ -318,7 +317,7 @@ body {
   background: #f0f0f0;
   padding: 2px 8px;
   border-radius: 4px;
-  display: inline-block;
+  display: inline;
 }
 
 .transaction-amount {
