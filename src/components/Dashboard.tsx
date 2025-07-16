@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { Transaction } from '../types/transaction';
 import { TransactionList } from './TransactionList';
+import { ErrorBoundary } from './ErrorBoundary';
 import { useUserContext } from '../contexts/UserContext';
 import { HeaderStats } from './HeaderStats';
 import { FilterPanel } from './FilterPanel';
@@ -105,11 +106,13 @@ export const Dashboard: React.FC = () => {
       />
 
       <div className="dashboard-content">
-        <TransactionList
-          transactions={filteredTransactions}
-          totalTransactions={transactions.length}
-          onTransactionClick={handleTransactionClick}
-        />
+        <ErrorBoundary>
+          <TransactionList
+            transactions={filteredTransactions}
+            totalTransactions={transactions.length}
+            onTransactionClick={handleTransactionClick}
+          />
+        </ErrorBoundary>
       </div>
 
       {selectedTransaction && (
