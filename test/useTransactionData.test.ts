@@ -1,12 +1,12 @@
 import { renderHook, waitFor } from "@testing-library/react"
 import { act } from "react"
-import { useTransactionData } from "./useTransactionData"
-import { useWorker } from "../useWorker"
-import { useUserContext } from "../useUserContext"
-import { Transaction } from "../../types/transaction"
+import { useTransactionData } from "../src/hooks/transactions/useTransactionData"
+import { useWorker } from "../src/hooks/useWorker"
+import { useUserContext } from "../src/hooks/useUserContext"
+import { Transaction } from "../src/types/transaction"
 
-vi.mock("../useWorker")
-vi.mock("../useUserContext")
+vi.mock("../src/hooks/useWorker")
+vi.mock("../src/hooks/useUserContext")
 
 describe("useTransactionData", () => {
 	const mockGenerateTransactionData = vi.fn()
@@ -61,15 +61,17 @@ describe("useTransactionData", () => {
 		mockCalculateSummary.mockResolvedValue({ total: 300, credits: 100, debits: 200 })
 
 		// Make the mock for getFilteredTransactions more realistic
-		mockGetFilteredTransactions.mockImplementation(async (transactions: Transaction[], filters: any) => {
-			if (filters.type === "credit") {
-				return transactions.filter((t) => t.type === "credit")
+		mockGetFilteredTransactions.mockImplementation(
+			async (transactions: Transaction[], filters: any) => {
+				if (filters.type === "credit") {
+					return transactions.filter((t) => t.type === "credit")
+				}
+				if (filters.type === "debit") {
+					return transactions.filter((t) => t.type === "debit")
+				}
+				return transactions
 			}
-			if (filters.type === "debit") {
-				return transactions.filter((t) => t.type === "debit")
-			}
-			return transactions
-		})
+		)
 	})
 
 	it("should load initial data and set summary", async () => {

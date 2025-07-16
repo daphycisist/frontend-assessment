@@ -1,9 +1,9 @@
 import { renderHook, waitFor } from "@testing-library/react"
-import { useTransactionAnalytics } from "./useTransactionAnalytics"
-import { useWorker } from "../useWorker"
-import { Transaction } from "../../types/transaction"
+import { useTransactionAnalytics } from "../src/hooks/transactions/useTransactionAnalytics"
+import { useWorker } from "../src/hooks/useWorker"
+import { Transaction } from "../src/types/transaction"
 
-vi.mock("../useWorker")
+vi.mock("../src/hooks/useWorker")
 
 describe("useTransactionAnalytics", () => {
 	const mockGetAdvancedAnalytics = vi.fn()

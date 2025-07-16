@@ -1,9 +1,9 @@
 import { renderHook } from "@testing-library/react"
-import { useWorker } from "./useWorker"
-import * as client from "../workers/client"
-import { UserPreference } from "../types/user"
+import { useWorker } from "../src/hooks/useWorker"
+import * as client from "../src/workers/client"
+import { UserPreference } from "../src/types/user"
 
-vi.mock("../workers/client", () => ({
+vi.mock("../src/workers/client", () => ({
 	call: vi.fn(),
 }))
 

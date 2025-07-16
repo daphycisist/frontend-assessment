@@ -196,7 +196,7 @@ function generateRandomDescription(): string {
 	}`
 }
 
-let intervalId: number | null = null
+let intervalId: any | null = null
 
 export function startDataRefresh(callback: () => void) {
 	if (intervalId) {

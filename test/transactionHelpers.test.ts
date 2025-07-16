@@ -4,12 +4,12 @@ import {
 	analyzeTransactionPatterns,
 	detectAnomalies,
 	getAdvancedAnalytics,
-} from "./transactionHelpers"
-import { Transaction } from "../types/transaction"
-import * as dataGenerator from "./dataGenerator"
-import { UserPreference } from "../types/user"
+} from "../src/utils/transactionHelpers"
+import { Transaction } from "../src/types/transaction"
+import * as dataGenerator from "../src/utils/dataGenerator"
+import { UserPreference } from "../src/types/user"
 
-vi.mock("./dataGenerator", () => ({
+vi.mock("../src/utils/dataGenerator", () => ({
 	filterTransactions: vi.fn((data) => data),
 	searchTransactions: vi.fn((data) => data),
 }))

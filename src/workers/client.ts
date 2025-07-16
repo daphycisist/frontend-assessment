@@ -9,6 +9,8 @@ import {
 
 let worker: Worker | null = null
 
+import workerUrl from "./web-worker?worker&url"
+
 const callInfoMap = new Map<string, CallInfo>()
 
 export async function call<Method extends WorkerMethods>(
@@ -76,7 +78,7 @@ function setupWorkerListener() {
 }
 
 export function startWorker() {
-	worker = new Worker(new URL("./web-worker.ts", import.meta.url), { type: "module" })
+	worker = new Worker(new URL(workerUrl, import.meta.url), { type: "module" })
 	setupWorkerListener()
 }
 

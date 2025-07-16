@@ -1,13 +1,13 @@
 import { renderHook, act } from "@testing-library/react"
-import { useTransactions } from "./useTransactions"
-import { useUserContext } from "./useUserContext"
-import { useTransactionData } from "./transactions/useTransactionData"
-import { useTransactionAnalytics } from "./transactions/useTransactionAnalytics"
-import { Transaction } from "../types/transaction"
+import { useTransactions } from "../src/hooks/useTransactions"
+import { useUserContext } from "../src/hooks/useUserContext"
+import { useTransactionData } from "../src/hooks/transactions/useTransactionData"
+import { useTransactionAnalytics } from "../src/hooks/transactions/useTransactionAnalytics"
+import { Transaction } from "../src/types/transaction"
 
-vi.mock("./useUserContext")
-vi.mock("./transactions/useTransactionData")
-vi.mock("./transactions/useTransactionAnalytics")
+vi.mock("../src/hooks/useUserContext")
+vi.mock("../src/hooks/transactions/useTransactionData")
+vi.mock("../src/hooks/transactions/useTransactionAnalytics")
 
 describe("useTransactions", () => {
 	const mockUpdateUserPreferences = vi.fn()
