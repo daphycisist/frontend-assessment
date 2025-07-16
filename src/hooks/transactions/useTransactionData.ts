@@ -36,14 +36,15 @@ export function useTransactionData() {
 				// Run risk assessment for fraud detection compliance
 				if (initialData.length > 1000) {
 					console.log("Starting risk assessment...")
+					console.time("Risk assessment duration")
 					const metrics = await generateRiskAssessment(initialData.slice(0, 1000))
+					console.timeEnd("Risk assessment duration")
 					console.log("Risk assessment completed:", metrics.processingTime + "ms")
 				}
 			}
 
 			setLoading(false)
 		}
-
 		loadInitialData()
 	}, [])
 
@@ -59,6 +60,7 @@ export function useTransactionData() {
 	}, [])
 
 	const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([])
+
 	const [filters, setFilters] = useState<FilterOptions>({
 		type: "all",
 		status: "all",

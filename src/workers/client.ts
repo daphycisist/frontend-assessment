@@ -77,7 +77,6 @@ function setupWorkerListener() {
 
 export function startWorker() {
 	worker = new Worker(new URL("./web-worker.ts", import.meta.url), { type: "module" })
-	console.log(worker)
 	setupWorkerListener()
 }
 

@@ -13,21 +13,7 @@ export function getFilteredTransactions(
 		filtered = searchTransactions(filtered, currentFilters.searchTerm)
 	}
 
-	if (currentFilters.type && currentFilters.type !== "all") {
-		filtered = filterTransactions(filtered, { type: currentFilters.type })
-	}
-
-	if (currentFilters.status && currentFilters.status !== "all") {
-		filtered = filterTransactions(filtered, {
-			status: currentFilters.status,
-		})
-	}
-
-	if (currentFilters.category) {
-		filtered = filterTransactions(filtered, {
-			category: currentFilters.category,
-		})
-	}
+	filtered = filterTransactions(filtered, currentFilters)
 
 	if (userPreferences.compactView) {
 		filtered = filtered.slice(0, userPreferences.itemsPerPage)
@@ -56,11 +42,6 @@ export function getFilteredTransactions(
 	}
 
 	return filtered
-
-	// setUserPreferences((prev) => ({
-	// 	...prev,
-	// 	timestamps: { ...prev.timestamps, updated: Date.now() },
-	// }))
 }
 
 export const calculateRiskFactors = (transaction: Transaction, allTransactions: Transaction[]) => {

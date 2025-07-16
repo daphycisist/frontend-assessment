@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useCallback, useMemo, useState } from "react"
 import { Transaction, FilterOptions } from "../types/transaction"
 
 import { TransactionList } from "./TransactionList"
@@ -6,6 +6,7 @@ import { useTransactions } from "../hooks/useTransactions"
 import { DashboardStats } from "./dashboard/DashboardStats"
 import { DashboardControls } from "./dashboard/DashboardControls"
 import { TransactionDetailsModal } from "./dashboard/TransactionDetailsModal"
+import { useUserContext } from "../hooks/useUserContext"
 
 export const Dashboard: React.FC = () => {
 	const {
@@ -18,9 +19,11 @@ export const Dashboard: React.FC = () => {
 		summary,
 		riskAnalytics,
 		onTransactionClick,
+		setFilters,
 		isAnalyzing,
 	} = useTransactions()
 
+	const { trackActivity } = useUserContext()
 	const [refreshInterval, setRefreshInterval] = useState<number>(5000)
 
 	const actualRefreshRate = refreshInterval || 5000
@@ -41,28 +44,24 @@ export const Dashboard: React.FC = () => {
 		;(window as { dashboardControls?: typeof refreshControls }).dashboardControls = refreshControls
 	}
 
-	const handleSearch = (searchTerm: string) => {
-		// setSearchTerm(searchTerm)
-		// trackActivity(`search:${searchTerm}`)
-		// const searchResults = searchTransactions(transactions, searchTerm)
-		// const filtered = filterTransactions(searchResults, filters)
-		// setFilteredTransactions(filtered)
-	}
+	const handleSearch = useCallback((searchTerm: string) => {
+		trackActivity(`search:${searchTerm}`)
+		setFilters((prev) => ({ ...prev, searchTerm }))
+	}, [])
 
-	const handleFilterChange = (newFilters: FilterOptions) => {
-		// setFilters(newFilters)
-		// applyFilters(transactions, newFilters, searchTerm)
-	}
+	const handleFilterChange = useCallback((newFilters: FilterOptions) => {
+		setFilters(newFilters)
+	}, [])
 
 	const handleTransactionClick = (transaction: Transaction) => {
 		onTransactionClick(transaction)
 	}
 
-	const getUniqueCategories = () => {
+	const categories = useMemo(() => {
 		const categories = new Set<string>()
-		// transactions.forEach((t) => categories.add(t.category))
+		transactions.forEach((t) => categories.add(t.category))
 		return Array.from(categories)
-	}
+	}, [transactions])
 
 	if (loading) {
 		return (
@@ -87,6 +86,7 @@ export const Dashboard: React.FC = () => {
 			</div>
 
 			<DashboardControls
+				categories={categories}
 				onSearch={handleSearch}
 				filters={filters}
 				onFilterChange={handleFilterChange}

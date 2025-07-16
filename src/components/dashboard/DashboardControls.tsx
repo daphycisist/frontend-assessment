@@ -4,10 +4,16 @@ import { SearchBar } from "../SearchBar"
 interface DashboardControlsProps {
 	onSearch: (searchTerm: string) => void
 	filters: FilterOptions
+	categories: string[]
 	onFilterChange: (newFilters: FilterOptions) => void
 }
 
-export const DashboardControls: React.FC<DashboardControlsProps> = ({ onSearch, filters, onFilterChange }) => {
+export const DashboardControls: React.FC<DashboardControlsProps> = ({
+	onSearch,
+	filters,
+	onFilterChange,
+	categories,
+}) => {
 	return (
 		<div className="dashboard-controls">
 			<SearchBar onSearch={onSearch} />
@@ -47,11 +53,11 @@ export const DashboardControls: React.FC<DashboardControlsProps> = ({ onSearch, 
 					onChange={(e) => onFilterChange({ ...filters, category: e.target.value })}
 				>
 					<option value="">All Categories</option>
-					{/* {getUniqueCategories().map((category) => (
+					{categories.map((category) => (
 						<option key={category} value={category}>
 							{category}
 						</option>
-					))} */}
+					))}
 				</select>
 			</div>
 		</div>

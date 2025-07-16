@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react"
+import React, { useState, useMemo, useCallback, ComponentType } from "react"
 import { Transaction } from "../types/transaction"
 import { format } from "date-fns"
-import { FixedSizeList as List } from "react-window"
+import { FixedSizeList as _FixedSizeList, FixedSizeListProps } from "react-window"
+
+const FixedSizeList = _FixedSizeList as unknown as ComponentType<FixedSizeListProps>
 
 interface TransactionListProps {
 	transactions: Transaction[]
@@ -114,9 +116,14 @@ export const TransactionList: React.FC<TransactionListProps> = ({
 				aria-rowcount={sortedTransactions.length}
 				tabIndex={0}
 			>
-				<List height={700} itemCount={sortedTransactions.length} itemSize={180} width={"100%"}>
+				<FixedSizeList
+					height={700}
+					itemCount={sortedTransactions.length}
+					itemSize={180}
+					width={"100%"}
+				>
 					{Row}
-				</List>
+				</FixedSizeList>
 			</div>
 		</div>
 	)
