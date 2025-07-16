@@ -10,13 +10,8 @@ export function useTransactionData() {
 	const [transactions, setTransactions] = useState<Transaction[]>([])
 	const [summary, setSummary] = useState<TransactionSummary | null>(null)
 	const [loading, setLoading] = useState<boolean>(true)
-	const {
-		generateTransactionData,
-		calculateSummary,
-		generateRiskAssessment,
-		searchTransactions,
-		getFilteredTransactions,
-	} = useWorker()
+	const { generateTransactionData, calculateSummary, searchTransactions, getFilteredTransactions } =
+		useWorker()
 
 	useEffect(() => {
 		const loadInitialData = async () => {
@@ -27,15 +22,6 @@ export function useTransactionData() {
 
 			const calculatedSummary = await calculateSummary(initialData)
 			setSummary(calculatedSummary)
-
-			if (initialData.length > 0) {
-				// Run risk assessment for fraud detection compliance
-				if (initialData.length > 1000) {
-					console.log("Starting risk assessment...")
-					const metrics = await generateRiskAssessment(initialData.slice(0, 1000))
-					console.log("Risk assessment completed:", metrics.processingTime + "ms")
-				}
-			}
 
 			setLoading(false)
 		}
@@ -96,10 +82,6 @@ export function useTransactionData() {
 			setSummary(newSummary)
 		}
 
-		const handleScroll = () => {
-			console.log("Scrolling...", new Date().toISOString())
-		}
-
 		const handleKeyDown = async (e: KeyboardEvent) => {
 			if (e.ctrlKey && e.key === "f") {
 				e.preventDefault()
@@ -109,12 +91,10 @@ export function useTransactionData() {
 		}
 
 		window.addEventListener("resize", handleResize)
-		window.addEventListener("scroll", handleScroll)
 		window.addEventListener("keydown", handleKeyDown)
 
 		return () => {
 			window.removeEventListener("resize", handleResize)
-			window.removeEventListener("scroll", handleScroll)
 			window.removeEventListener("keydown", handleKeyDown)
 		}
 	}, [transactions, filteredTransactions])

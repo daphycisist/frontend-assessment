@@ -29,15 +29,6 @@ export async function call<Method extends WorkerMethods>(
 		parameters,
 	}
 
-	console.log(
-		"Calling worker method:",
-		method,
-		"with parameters:",
-		parameters,
-		"and callId:",
-		callId
-	)
-
 	return new Promise((resolve, reject) => {
 		worker!.postMessage(workerCall)
 		callInfoMap.set(callId, {
@@ -62,8 +53,6 @@ function setupWorkerListener() {
 		const { callId, result, error } = event.data
 
 		const callInfo = callInfoMap.get(callId)
-
-		console.log("Worker response received for callId:", callId, "result:", result, "error:", error)
 
 		if (!callInfo) {
 			return
