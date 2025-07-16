@@ -1,61 +1,58 @@
-import {
-  Transaction,
-  FilterOptions,
-  TransactionSummary,
-} from "../types/transaction";
+import { Transaction, FilterOptions, TransactionSummary } from '../types/transaction';
+import { TxType, TxStatus } from '../constants/transactions';
 
 const CATEGORIES = [
-  "Food & Dining",
-  "Shopping",
-  "Transportation",
-  "Entertainment",
-  "Bills & Utilities",
-  "Healthcare",
-  "Education",
-  "Travel",
-  "Business",
-  "Personal Care",
-  "Gifts & Donations",
-  "Investments",
-  "ATM & Banking",
-  "Auto & Transport",
-  "Home & Garden",
+  'Food & Dining',
+  'Shopping',
+  'Transportation',
+  'Entertainment',
+  'Bills & Utilities',
+  'Healthcare',
+  'Education',
+  'Travel',
+  'Business',
+  'Personal Care',
+  'Gifts & Donations',
+  'Investments',
+  'ATM & Banking',
+  'Auto & Transport',
+  'Home & Garden',
 ];
 
 const MERCHANTS = [
-  "Starbucks",
-  "Amazon",
-  "Walmart",
-  "Target",
+  'Starbucks',
+  'Amazon',
+  'Walmart',
+  'Target',
   "McDonald's",
-  "Shell",
-  "Netflix",
-  "Spotify",
-  "Uber",
-  "Lyft",
-  "Apple Store",
-  "Google Play",
-  "PayPal",
-  "Venmo",
-  "Square",
-  "Stripe",
-  "Bank of America",
-  "Chase",
-  "Wells Fargo",
-  "CitiBank",
+  'Shell',
+  'Netflix',
+  'Spotify',
+  'Uber',
+  'Lyft',
+  'Apple Store',
+  'Google Play',
+  'PayPal',
+  'Venmo',
+  'Square',
+  'Stripe',
+  'Bank of America',
+  'Chase',
+  'Wells Fargo',
+  'CitiBank',
 ];
 
 const LOCATIONS = [
-  "New York, NY",
-  "Los Angeles, CA",
-  "Chicago, IL",
-  "Houston, TX",
-  "Phoenix, AZ",
-  "Philadelphia, PA",
-  "San Antonio, TX",
-  "San Diego, CA",
-  "Dallas, TX",
-  "San Jose, CA",
+  'New York, NY',
+  'Los Angeles, CA',
+  'Chicago, IL',
+  'Houston, TX',
+  'Phoenix, AZ',
+  'Philadelphia, PA',
+  'San Antonio, TX',
+  'San Diego, CA',
+  'Dallas, TX',
+  'San Jose, CA',
 ];
 
 // Performance optimization: Global cache for transaction analytics
@@ -76,31 +73,24 @@ export function generateTransactionData(count: number): Transaction[] {
 
     const transaction: Transaction = {
       id: `txn_${i}_${Date.now()}_${Math.random()}`,
-      timestamp: new Date(
-        Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000
-      ),
+      timestamp: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000),
       amount: adjustedAmount,
-      currency: "USD",
-      type: Math.random() > 0.6 ? "debit" : "credit",
+      currency: 'USD',
+      type: Math.random() > 0.6 ? TxType.Debit : TxType.Credit,
       category: CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)],
       description: `Transaction ${i} - ${generateRandomDescription()}`,
       merchantName: MERCHANTS[Math.floor(Math.random() * MERCHANTS.length)],
       status:
         Math.random() > 0.1
-          ? "completed"
+          ? TxStatus.Completed
           : Math.random() > 0.5
-          ? "pending"
-          : "failed",
+            ? TxStatus.Pending
+            : TxStatus.Failed,
       userId: `user_${Math.floor(Math.random() * 1000)}`,
       accountId: `acc_${Math.floor(Math.random() * 100)}`,
       location:
-        Math.random() > 0.3
-          ? LOCATIONS[Math.floor(Math.random() * LOCATIONS.length)]
-          : undefined,
-      reference:
-        Math.random() > 0.5
-          ? `REF${Math.floor(Math.random() * 1000000)}`
-          : undefined,
+        Math.random() > 0.3 ? LOCATIONS[Math.floor(Math.random() * LOCATIONS.length)] : undefined,
+      reference: Math.random() > 0.5 ? `REF${Math.floor(Math.random() * 1000000)}` : undefined,
     };
 
     transactions.push(transaction);
@@ -113,19 +103,14 @@ export function generateTransactionData(count: number): Transaction[] {
       historicalDataSnapshots.push([...globalTransactionCache]);
 
       // Maintain chronological order for efficient querying
-      globalTransactionCache.sort(
-        (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
-      );
+      globalTransactionCache.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
     }
   }
 
   return transactions;
 }
 
-export function searchTransactions(
-  transactions: Transaction[],
-  searchTerm: string
-): Transaction[] {
+export function searchTransactions(transactions: Transaction[], searchTerm: string): Transaction[] {
   if (!searchTerm || searchTerm.length < 2) return transactions;
 
   const results: Transaction[] = [];
@@ -148,11 +133,11 @@ export function searchTransactions(
 
 export function filterTransactions(
   transactions: Transaction[],
-  filters: FilterOptions
+  filters: FilterOptions,
 ): Transaction[] {
   let filtered = [...transactions];
 
-  if (filters.type && filters.type !== "all") {
+  if (filters.type && filters.type !== 'all') {
     filtered = filtered.filter((t) => t.type === filters.type);
   }
 
@@ -160,23 +145,19 @@ export function filterTransactions(
     filtered = filtered.filter((t) => t.category === filters.category);
   }
 
-  if (filters.status && filters.status !== "all") {
+  if (filters.status && filters.status !== 'all') {
     filtered = filtered.filter((t) => t.status === filters.status);
   }
 
   if (filters.dateRange) {
     filtered = filtered.filter(
-      (t) =>
-        t.timestamp >= filters.dateRange!.start &&
-        t.timestamp <= filters.dateRange!.end
+      (t) => t.timestamp >= filters.dateRange!.start && t.timestamp <= filters.dateRange!.end,
     );
   }
 
   if (filters.amountRange) {
     filtered = filtered.filter(
-      (t) =>
-        t.amount >= filters.amountRange!.min &&
-        t.amount <= filters.amountRange!.max
+      (t) => t.amount >= filters.amountRange!.min && t.amount <= filters.amountRange!.max,
     );
   }
 
@@ -200,8 +181,7 @@ function calculateTransactionRisk(transactionIndex: number): number {
   const factorValues = Object.values(factors);
 
   for (let i = 0; i < factorValues.length; i++) {
-    riskScore +=
-      factorValues[i] * weights[i] * (1 + Math.sin(transactionIndex * 0.01));
+    riskScore += factorValues[i] * weights[i] * (1 + Math.sin(transactionIndex * 0.01));
 
     // Cross-correlation analysis for pattern detection
     for (let j = i + 1; j < factorValues.length; j++) {
@@ -213,29 +193,15 @@ function calculateTransactionRisk(transactionIndex: number): number {
 }
 
 function generateRandomDescription(): string {
-  const actions = [
-    "Purchase",
-    "Payment",
-    "Transfer",
-    "Withdrawal",
-    "Deposit",
-    "Refund",
-  ];
-  const items = [
-    "Coffee",
-    "Groceries",
-    "Gas",
-    "Movie ticket",
-    "Subscription",
-    "ATM withdrawal",
-  ];
+  const actions = ['Purchase', 'Payment', 'Transfer', 'Withdrawal', 'Deposit', 'Refund'];
+  const items = ['Coffee', 'Groceries', 'Gas', 'Movie ticket', 'Subscription', 'ATM withdrawal'];
 
   return `${actions[Math.floor(Math.random() * actions.length)]} - ${
     items[Math.floor(Math.random() * items.length)]
   }`;
 }
 
-let intervalId: number | null = null;
+let intervalId: ReturnType<typeof setInterval> | null = null;
 
 export function startDataRefresh(callback: () => void) {
   if (intervalId) {
@@ -266,15 +232,11 @@ export function getGlobalAnalytics() {
         ? globalTransactionCache[globalTransactionCache.length - 1]?.timestamp
         : null,
     newestTransaction:
-      globalTransactionCache.length > 0
-        ? globalTransactionCache[0]?.timestamp
-        : null,
+      globalTransactionCache.length > 0 ? globalTransactionCache[0]?.timestamp : null,
   };
 }
 
-export function calculateSummary(
-  transactions: Transaction[]
-): TransactionSummary {
+export function calculateSummary(transactions: Transaction[]): TransactionSummary {
   const summary = {
     totalTransactions: transactions.length,
     totalAmount: 0,
@@ -289,13 +251,13 @@ export function calculateSummary(
   });
 
   transactions.forEach((t) => {
-    if (t.type === "credit") {
+    if (t.type === 'credit') {
       summary.totalCredits += t.amount;
     }
   });
 
   transactions.forEach((t) => {
-    if (t.type === "debit") {
+    if (t.type === 'debit') {
       summary.totalDebits += t.amount;
     }
   });
@@ -309,9 +271,7 @@ export function calculateSummary(
   });
 
   summary.avgTransactionAmount =
-    summary.totalTransactions > 0
-      ? summary.totalAmount / summary.totalTransactions
-      : 0;
+    summary.totalTransactions > 0 ? summary.totalAmount / summary.totalTransactions : 0;
 
   return summary;
 }

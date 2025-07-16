@@ -1,6 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { Transaction } from "../types/transaction";
-import { format } from "date-fns";
+import React, { useState, useEffect, useMemo } from 'react';
+import { FixedSizeList as RWFixedSizeList, ListChildComponentProps } from 'react-window';
+
+// Workaround for typing issue with react-window + React 18 JSX
+const FixedSizeList = RWFixedSizeList as unknown as React.ComponentType<unknown> &
+  typeof RWFixedSizeList;
+import { Transaction } from '../types/transaction';
+import { TransactionItem } from './TransactionItem';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -15,28 +20,14 @@ export const TransactionList: React.FC<TransactionListProps> = ({
 }) => {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const [activeIndex, setActiveIndex] = useState<number>(0);
+  const listRef = React.useRef<RWFixedSizeList>(null);
 
   useEffect(() => {
-    // Pre-calculate formatted amounts for display optimization
-    const formattedTransactions = transactions.map((t) => {
-      return {
-        ...t,
-        formattedAmount: new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "USD",
-        }).format(t.amount),
-      };
-    });
-
+    // store count for dev debugging, only when list length changes
+    localStorage.setItem('lastTransactionCount', transactions.length.toString());
     setSelectedItems(new Set());
-
-    if (formattedTransactions.length > 0) {
-      localStorage.setItem(
-        "lastTransactionCount",
-        formattedTransactions.length.toString()
-      );
-    }
-  });
+  }, [transactions.length]);
 
   const handleItemClick = (transaction: Transaction) => {
     const updatedSelected = new Set(selectedItems);
@@ -49,23 +40,67 @@ export const TransactionList: React.FC<TransactionListProps> = ({
     onTransactionClick(transaction);
   };
 
-  const handleMouseEnter = (id: string) => {
-    setHoveredItem(id);
-  };
+  const sortedTransactions = useMemo(() => {
+    return [...transactions].sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    );
+  }, [transactions]);
 
-  const handleMouseLeave = () => {
-    setHoveredItem(null);
+  // Row renderer for react-window
+  const Row = ({ index, style }: ListChildComponentProps) => {
+    const transaction = sortedTransactions[index];
+    return (
+      <div style={style}>
+        <TransactionItem
+          key={transaction.id}
+          transaction={transaction}
+          isSelected={selectedItems.has(transaction.id)}
+          isHovered={activeIndex === index}
+          onClick={() => handleItemClick(transaction)}
+          onMouseEnter={() => {
+            setHoveredItem(transaction.id);
+            setActiveIndex(index);
+          }}
+          onMouseLeave={() => {}}
+          rowIndex={index}
+        />
+      </div>
+    );
   };
-
-  const sortedTransactions = transactions.sort((a, b) => {
-    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-  });
 
   return (
     <div
       className="transaction-list"
       role="region"
       aria-label="Transaction list"
+      aria-keyshortcuts="ArrowUp ArrowDown Enter"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setActiveIndex((prevIdx) => {
+            const nextIndex = Math.min(prevIdx + 1, sortedTransactions.length - 1);
+            listRef.current?.scrollToItem(nextIndex, 'smart');
+            setHoveredItem(sortedTransactions[nextIndex]?.id);
+            return nextIndex;
+          });
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setActiveIndex((prevIdx) => {
+            const newIndex = Math.max(prevIdx - 1, 0);
+            listRef.current?.scrollToItem(newIndex, 'smart');
+            setHoveredItem(sortedTransactions[newIndex]?.id);
+            return newIndex;
+          });
+        }
+        if (e.key === 'Enter' || e.key === 'Return') {
+          const current = hoveredItem
+            ? sortedTransactions.find((t) => t.id === hoveredItem)
+            : sortedTransactions[activeIndex];
+          if (current) onTransactionClick(current);
+        }
+      }}
     >
       <div className="transaction-list-header">
         <h2 id="transaction-list-title">
@@ -76,10 +111,10 @@ export const TransactionList: React.FC<TransactionListProps> = ({
           )
         </h2>
         <span className="total-amount" aria-live="polite">
-          Total:{" "}
-          {new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
+          Total:{' '}
+          {new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
           }).format(transactions.reduce((sum, t) => sum + t.amount, 0))}
         </span>
       </div>
@@ -91,132 +126,15 @@ export const TransactionList: React.FC<TransactionListProps> = ({
         aria-rowcount={sortedTransactions.length}
         tabIndex={0}
       >
-        {sortedTransactions.map((transaction, index) => (
-          <TransactionItem
-            key={transaction.id}
-            transaction={transaction}
-            isSelected={selectedItems.has(transaction.id)}
-            isHovered={hoveredItem === transaction.id}
-            onClick={() => handleItemClick(transaction)}
-            onMouseEnter={() => handleMouseEnter(transaction.id)}
-            onMouseLeave={handleMouseLeave}
-            rowIndex={index}
-          />
-        ))}
-      </div>
-    </div>
-  );
-};
-
-const TransactionItem: React.FC<{
-  transaction: Transaction;
-  isSelected: boolean;
-  isHovered: boolean;
-  onClick: () => void;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
-  rowIndex: number;
-}> = ({
-  transaction,
-  isSelected,
-  isHovered,
-  onClick,
-  onMouseEnter,
-  onMouseLeave,
-  rowIndex,
-}) => {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount);
-  };
-
-  const formatDate = (date: Date) => {
-    return format(date, "MMM dd, yyyy HH:mm");
-  };
-
-  const getItemStyle = () => {
-    const baseStyle = {
-      backgroundColor: isSelected ? "#e3f2fd" : "#ffffff",
-      borderColor: isHovered ? "#2196f3" : "#e0e0e0",
-      transform: isHovered ? "translateY(-1px)" : "translateY(0)",
-      boxShadow: isHovered
-        ? "0 4px 8px rgba(0,0,0,0.1)"
-        : "0 2px 4px rgba(0,0,0,0.05)",
-    };
-
-    if (transaction.type === "debit") {
-      return {
-        ...baseStyle,
-        borderLeft: "4px solid #f44336",
-      };
-    } else {
-      return {
-        ...baseStyle,
-        borderLeft: "4px solid #4caf50",
-      };
-    }
-  };
-
-  return (
-    <div
-      className="transaction-item"
-      style={getItemStyle()}
-      onClick={onClick}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-      role="gridcell"
-      aria-rowindex={rowIndex + 1}
-      aria-selected={isSelected}
-      aria-describedby={`transaction-${transaction.id}-details`}
-      tabIndex={0}
-    >
-      <div className="transaction-main">
-        <div className="transaction-merchant">
-          <span className="merchant-name">{transaction.merchantName}</span>
-          <span className="transaction-category">{transaction.category}</span>
-        </div>
-        <div className="transaction-amount">
-          <span className={`amount ${transaction.type}`}>
-            {transaction.type === "debit" ? "-" : "+"}
-            {formatCurrency(transaction.amount)}
-          </span>
-        </div>
-      </div>
-      <div
-        className="transaction-details"
-        id={`transaction-${transaction.id}-details`}
-      >
-        <div
-          className="transaction-description"
-          aria-label={`Description: ${transaction.description}`}
+        <FixedSizeList
+          ref={listRef as unknown as React.Ref<RWFixedSizeList>}
+          height={600}
+          itemCount={sortedTransactions.length}
+          itemSize={200}
+          width="100%"
         >
-          {transaction.description}
-        </div>
-        <div className="transaction-meta">
-          <span
-            className="transaction-date"
-            aria-label={`Date: ${formatDate(transaction.timestamp)}`}
-          >
-            {formatDate(transaction.timestamp)}
-          </span>
-          <span
-            className={`transaction-status ${transaction.status}`}
-            aria-label={`Status: ${transaction.status}`}
-            aria-live="polite"
-          >
-            {transaction.status}
-          </span>
-          {transaction.location && (
-            <span
-              className="transaction-location"
-              aria-label={`Location: ${transaction.location}`}
-            >
-              {transaction.location}
-            </span>
-          )}
-        </div>
+          {Row}
+        </FixedSizeList>
       </div>
     </div>
   );

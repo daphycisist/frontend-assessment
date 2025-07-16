@@ -8,10 +8,10 @@ import {
   isValid,
   differenceInDays,
   formatDistanceToNow,
-} from "date-fns";
+} from 'date-fns';
 
 export const formatTransactionDate = (date: Date): string => {
-  return format(date, "PPpp");
+  return format(date, 'PPpp');
 };
 
 export const getDateRange = (months: number = 1) => {
@@ -47,16 +47,16 @@ export const generateDateArray = (start: Date, end: Date): Date[] => {
   return dates;
 };
 
-export const formatCurrency = (amount: number, locale: string = "en-US") => {
+export const formatCurrency = (amount: number, locale: string = 'en-US') => {
   return new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency: "USD",
+    style: 'currency',
+    currency: 'USD',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount);
 };
 
-export const formatNumber = (num: number, locale: string = "en-US") => {
+export const formatNumber = (num: number, locale: string = 'en-US') => {
   return new Intl.NumberFormat(locale, {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,

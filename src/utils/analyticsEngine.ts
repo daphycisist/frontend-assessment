@@ -1,4 +1,4 @@
-import { Transaction } from "../types/transaction";
+import { Transaction } from '../types/transaction';
 
 // Comprehensive risk assessment engine for fraud detection and compliance
 export const generateRiskAssessment = (transactions: Transaction[]) => {
@@ -13,16 +13,12 @@ export const generateRiskAssessment = (transactions: Transaction[]) => {
 
       const merchantSimilarity = calculateStringSimilarity(
         transaction.merchantName,
-        other.merchantName
+        other.merchantName,
       );
       const amountSimilarity =
-        Math.abs(transaction.amount - other.amount) /
-        Math.max(transaction.amount, other.amount);
+        Math.abs(transaction.amount - other.amount) / Math.max(transaction.amount, other.amount);
       const timeDiff =
-        Math.abs(
-          new Date(transaction.timestamp).getTime() -
-            new Date(other.timestamp).getTime()
-        ) /
+        Math.abs(new Date(transaction.timestamp).getTime() - new Date(other.timestamp).getTime()) /
         (1000 * 60 * 60);
 
       // Flag suspicious patterns based on similarity thresholds
@@ -67,7 +63,7 @@ const calculateStringSimilarity = (str1: string, str2: string): number => {
         matrix[i][j] = Math.min(
           matrix[i - 1][j] + 1,
           matrix[i][j - 1] + 1,
-          matrix[i - 1][j - 1] + cost
+          matrix[i - 1][j - 1] + cost,
         );
       }
     }
@@ -77,10 +73,7 @@ const calculateStringSimilarity = (str1: string, str2: string): number => {
 };
 
 const generateTimeSeriesAnalysis = (transactions: Transaction[]) => {
-  const dailyData: Record<
-    string,
-    { total: number; count: number; avg: number }
-  > = {};
+  const dailyData: Record<string, { total: number; count: number; avg: number }> = {};
 
   transactions.forEach((transaction) => {
     const date = new Date(transaction.timestamp).toDateString();
@@ -115,7 +108,7 @@ const calculateMarketCorrelation = (transactions: Transaction[]) => {
       if (cat1Transactions.length > 1 && cat2Transactions.length > 1) {
         correlationMatrix[cat1][cat2] = calculatePearsonCorrelation(
           cat1Transactions.map((t) => t.amount),
-          cat2Transactions.map((t) => t.amount)
+          cat2Transactions.map((t) => t.amount),
         );
       } else {
         correlationMatrix[cat1][cat2] = 0;
@@ -137,9 +130,7 @@ const calculatePearsonCorrelation = (x: number[], y: number[]): number => {
   const sumY2 = y.slice(0, n).reduce((sum, yi) => sum + yi * yi, 0);
 
   const numerator = n * sumXY - sumX * sumY;
-  const denominator = Math.sqrt(
-    (n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY)
-  );
+  const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
 
   return denominator === 0 ? 0 : numerator / denominator;
 };
@@ -169,8 +160,7 @@ const analyzeSpendingPattern = (userTransactions: Transaction[]) => {
 
   const categoryDistribution: Record<string, number> = {};
   userTransactions.forEach((t) => {
-    categoryDistribution[t.category] =
-      (categoryDistribution[t.category] || 0) + 1;
+    categoryDistribution[t.category] = (categoryDistribution[t.category] || 0) + 1;
   });
 
   return { avgAmount, totalAmount, categoryDistribution };

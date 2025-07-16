@@ -1,13 +1,15 @@
+import { TxType, TxStatus } from '../constants/transactions';
+
 export interface Transaction {
   id: string;
   timestamp: Date;
   amount: number;
   currency: string;
-  type: "debit" | "credit";
+  type: TxType;
   category: string;
   description: string;
   merchantName: string;
-  status: "pending" | "completed" | "failed";
+  status: TxStatus;
   userId: string;
   accountId: string;
   location?: string;
@@ -32,8 +34,8 @@ export interface FilterOptions {
     min: number;
     max: number;
   };
-  type?: "debit" | "credit" | "all";
+  type?: TxType | 'all';
   category?: string;
-  status?: "pending" | "completed" | "failed" | "all";
+  status?: TxStatus | 'all';
   searchTerm?: string;
 }
