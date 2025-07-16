@@ -47,8 +47,6 @@ export function useTransactions() {
 		updateUserPreferences({
 			analytics: analyticsData,
 		})
-
-		console.log("Related transactions:", relatedTransactions.length)
 	}
 
 	return {

@@ -41,6 +41,21 @@ To ensure optimal performance and resource utilization, several measures have be
 -   **`useEffect` Cleanup Functions**: `useEffect` hooks are used with cleanup functions to properly dispose of subscriptions, timers, and other resources when a component unmounts. This prevents memory leaks by ensuring that no references to unmounted components persist.
 -   **Conditional Rendering and Early Exits**: Components are designed to render conditionally or exit early if their props or state have not changed, avoiding redundant rendering cycles.
 
+## 5. useDebouncer Hook for debouncing any function
+A custom `useDebouncer` hook has been created to debounce any function, allowing us to control the frequency of function calls, especially for user input events like search or filter operations.
+
+### Sample usage
+```typescript
+import { useDebouncer } from "../hooks/useDebouncer";
+
+const undebouncedFunction = (value: string) => {
+    console.log(value);
+};
+
+const debouncedFunction = useDebouncer(undebouncedFunction, 300);
+
+```
+
 ### Benefits
 
 -   **Reduced Memory Footprint**: Proper cleanup of resources prevents memory accumulation over time.
