@@ -205,9 +205,7 @@ export function startDataRefresh(callback: () => void) {
 
 	intervalId = setInterval(async () => {
 		const newData = await call("generateTransactionData", [100])
-
-		// generateTransactionData(100)
-		// globalTransactionCache.push(...newData);
+		globalTransactionCache.push(...newData)
 		callback()
 	}, 10000)
 }

@@ -155,7 +155,6 @@ const TransactionItem: React.FC<{
 			borderColor: isHovered ? "#2196f3" : "#e0e0e0",
 			transform: isHovered ? "translateY(-1px)" : "translateY(0)",
 			boxShadow: isHovered ? "0 4px 8px rgba(0,0,0,0.1)" : "0 2px 4px rgba(0,0,0,0.05)",
-			// animation: "fadeIn 0.5s ease-in-out",
 		}
 
 		if (transaction.type === "debit") {

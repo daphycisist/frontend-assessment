@@ -2,7 +2,6 @@ import { useState, useEffect } from "react"
 import { Transaction, TransactionSummary } from "../../types/transaction"
 import { useWorker } from "../useWorker"
 import { startDataRefresh, stopDataRefresh } from "../../utils/dataGenerator"
-import { formatTransactionDate, getDateRange } from "../../utils/dateHelpers"
 import { FilterOptions } from "../../types/transaction"
 import { useUserContext } from "../useUserContext"
 import { UserPreference } from "../../types/user"
@@ -30,15 +29,10 @@ export function useTransactionData() {
 			setSummary(calculatedSummary)
 
 			if (initialData.length > 0) {
-				console.log("Latest transaction:", formatTransactionDate(initialData[0].timestamp))
-				console.log("Date range:", getDateRange(1))
-
 				// Run risk assessment for fraud detection compliance
 				if (initialData.length > 1000) {
 					console.log("Starting risk assessment...")
-					console.time("Risk assessment duration")
 					const metrics = await generateRiskAssessment(initialData.slice(0, 1000))
-					console.timeEnd("Risk assessment duration")
 					console.log("Risk assessment completed:", metrics.processingTime + "ms")
 				}
 			}
